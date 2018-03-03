@@ -17,9 +17,9 @@ abstract class BasePostRepository<E : BaseContract, T, X, V, K> : BaseRemoteRepo
 
     constructor(realm: Realm, clazz: Class<V>): super(realm, clazz)
 
-    constructor(idParent: Long?, clazz: Class<V>): super(idParent, clazz)
+    constructor(clazz: Class<V>, builder: Builder): super(clazz, builder)
 
-    constructor(realm: Realm, idParent: Long?, clazz: Class<V>): super(realm, idParent, clazz)
+    constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, clazz, builder)
 
     abstract protected fun getApiList(api: V, objDto: K, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
     abstract protected fun getObjApi(api: V, objDto: K, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)

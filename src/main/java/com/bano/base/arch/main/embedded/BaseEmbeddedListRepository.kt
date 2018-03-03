@@ -19,23 +19,13 @@ abstract class BaseEmbeddedListRepository<E : BaseContract, T, X, Z : BaseContra
 
     constructor(clazz: Class<V>): super(clazz)
 
-    constructor(limit: Int, clazz: Class<V>): super(limit, clazz)
-
-    constructor(realm: Realm, limit: Int, clazz: Class<V>): super(realm, limit, clazz)
+    constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, clazz, builder)
 
     constructor(realm: Realm, clazz: Class<V>): super(realm, clazz)
 
-    constructor(limit: Int, idParent: Long?, clazz: Class<V>): super(limit, idParent, clazz)
-
-    constructor(idParent: Long?, clazz: Class<V>): super(idParent, clazz)
-
-    constructor(realm: Realm, limit:Int, idParent: Long?, clazz: Class<V>): super(realm, limit, idParent, clazz)
-
-    constructor(realm: Realm, idParent: Long?, clazz: Class<V>): super(realm, idParent, clazz)
-
-    abstract protected fun getEmbeddedListFromApi(apiData: X): List<W>?
-    abstract protected fun createEmbeddedRepository(realm: Realm, idParent: Long?): BaseRepository<Z, Y, W>
-    abstract protected fun getId(apiData: X): Long
+    protected abstract fun getEmbeddedListFromApi(apiData: X): List<W>?
+    protected abstract fun createEmbeddedRepository(realm: Realm, idParent: Long?): BaseRepository<Z, Y, W>
+    protected abstract fun getId(apiData: X): Long
 
     override fun getRemoteList(callback: (baseResponse: BaseResponse<List<E>>) -> Unit) {
         super.getRemoteList { responseCode ->

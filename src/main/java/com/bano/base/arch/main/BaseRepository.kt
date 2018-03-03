@@ -2,6 +2,7 @@ package com.bano.base.arch.main
 
 import android.os.Handler
 import android.os.HandlerThread
+import android.support.annotation.WorkerThread
 import android.util.Log
 import com.bano.base.arch.Repository
 import com.bano.base.contract.BaseContract
@@ -25,43 +26,34 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
      */
     var resumeMode: Boolean = false
     val limit: Int
-    var offset: Int
+    var offset: Int = 0
         private set
     var total: Int? = null
+    private val mExcludeFieldName: String?
+    private val mOrderFieldName: String?
 
-    constructor() : super() {
+    constructor(): super() {
         idParent = null
         limit = 0
+        mExcludeFieldName = null
+        mOrderFieldName = null
+    }
+
+    constructor(builder: Builder): super() {
+        idParent = builder.idParent
+        limit = builder.limit
+        resumeMode = builder.resumeMode
+        mExcludeFieldName = builder.excludeFieldName
+        mOrderFieldName = builder.orderFieldName
         offset = 0
     }
 
-    constructor(limit: Int) : super() {
-        idParent = null
-        this.limit = limit
-        offset = 0
-    }
-
-    constructor(idParent: Long?) : super() {
-        this.idParent = idParent
-        limit = 0
-        offset = 0
-    }
-
-    constructor(limit: Int, idParent: Long?) : super() {
-        this.idParent = idParent
-        this.limit = limit
-        offset = 0
-    }
-
-    constructor(realm: Realm, idParent: Long?) : super(realm) {
-        this.idParent = idParent
-        limit = 0
-        offset = 0
-    }
-
-    constructor(realm: Realm, limit: Int, idParent: Long?) : super(realm) {
-        this.idParent = idParent
-        this.limit = limit
+    constructor(realm: Realm, builder: Builder): super(realm) {
+        idParent = builder.idParent
+        limit = builder.limit
+        resumeMode = builder.resumeMode
+        mExcludeFieldName = builder.excludeFieldName
+        mOrderFieldName = builder.orderFieldName
         offset = 0
     }
 
@@ -69,15 +61,11 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
         idParent = null
         limit = 0
         offset = 0
+        mExcludeFieldName = null
+        mOrderFieldName = null
     }
 
-    constructor(realm: Realm, limit: Int) : super(realm) {
-        idParent = null
-        this.limit = limit
-        offset = 0
-    }
-
-    protected abstract fun getTagLog(): String
+    protected open fun getTagLog(): String = "BaseRepository"
     protected abstract fun getRealmQueryTable(realm: Realm): RealmQuery<T>
     protected abstract fun getIdFieldName(): String
     protected abstract fun getIdParentFieldName(): String?
@@ -108,11 +96,12 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
     private fun getQueryByOrder(offset: Int, realmQuery: RealmQuery<T>): RealmResults<T> {
         val idParentFieldName = getIdParentFieldName()
         if (idParent != null && idParentFieldName != null) realmQuery.equalTo(idParentFieldName, idParent)
-        return if(limit > 0) realmQuery
-                .between("order", offset, (offset + limit) -1)
-                .isNull("excludeDate").sort("order").findAll()
-        else realmQuery
-                .isNull("excludeDate").sort("order").findAll()
+        return if(limit > 0 && mOrderFieldName != null && mExcludeFieldName != null) realmQuery
+                .between(mOrderFieldName, offset, (offset + limit) -1)
+                .isNull(mExcludeFieldName).sort(mOrderFieldName).findAll()
+        else if(mOrderFieldName != null && mExcludeFieldName != null) realmQuery
+                .isNull(mExcludeFieldName).sort(mOrderFieldName).findAll()
+        else realmQuery.findAll()
     }
 
     /**
@@ -205,6 +194,18 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
         }
     }
 
+    /**
+     * Call this method inside a transaction.
+     * Insert or update list in same thread that this method was call.
+     * Don't call this method in the main thread
+     */
+    @WorkerThread
+    fun insertOrUpdateHashList(realm: Realm, apiList: HashSet<X>) {
+        apiList.forEach {
+            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
+        }
+    }
+
     open fun update(e: E, callback: () -> Unit) {
         getRealm().executeTransactionAsync(Realm.Transaction { realm ->
             realm.copyToRealmOrUpdate(createRealmObj(e))
@@ -265,4 +266,43 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
     }
 
     protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
+
+    class Builder {
+        internal var excludeFieldName: String? = null
+        internal var orderFieldName: String? = null
+        internal var resumeMode: Boolean = false
+        internal var limit: Int = 0
+        internal var total: Int? = null
+        internal var idParent: Long? = null
+
+        fun setExcludeDateFieldName(fieldName: String): Builder {
+            excludeFieldName = fieldName
+            return this
+        }
+
+        fun setOrderFieldName(fieldName: String): Builder {
+            orderFieldName = fieldName
+            return this
+        }
+
+        fun resumeMode(): Builder {
+            resumeMode = true
+            return this
+        }
+
+        fun setLimitQuery(limit: Int): Builder {
+            this.limit = limit
+            return this
+        }
+
+        fun setTotalPagination(total: Int): Builder {
+            this.total = total
+            return this
+        }
+
+        fun setIdParent(idParent: Long): Builder {
+            this.idParent = idParent
+            return this
+        }
+    }
 }

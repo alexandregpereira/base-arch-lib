@@ -16,19 +16,11 @@ abstract class BaseSyncRepository<E, T, X, V> : BaseRemoteRepository<E, T, X, V>
 
     constructor(clazz: Class<V>): super(clazz)
 
-    constructor(limit: Int, clazz: Class<V>): super(limit, clazz)
+    constructor(clazz: Class<V>, builder: Builder): super(clazz, builder)
 
-    constructor(realm: Realm, limit: Int, clazz: Class<V>): super(realm, limit, clazz)
+    constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, clazz, builder)
 
     constructor(realm: Realm, clazz: Class<V>): super(realm, clazz)
-
-    constructor(limit: Int, idParent: Long?, clazz: Class<V>): super(limit, idParent, clazz)
-
-    constructor(idParent: Long?, clazz: Class<V>): super(idParent, clazz)
-
-    constructor(realm: Realm, limit:Int, idParent: Long?, clazz: Class<V>): super(realm, limit, idParent, clazz)
-
-    constructor(realm: Realm, idParent: Long?, clazz: Class<V>): super(realm, idParent, clazz)
 
     protected abstract fun sendPendentSync(api: V, syncList: List<E>, callback: (Boolean) -> Unit)
     protected abstract fun sendPendentSync(api: V, syncObj: E, callback: (Boolean) -> Unit)

@@ -29,11 +29,11 @@ abstract class BaseRemoteRepository<E, T, X, V> : BaseRepository<E, T, X> where 
         this.clazz = clazz
     }
 
-    constructor(limit: Int, clazz: Class<V>): super(limit) {
+    constructor(clazz: Class<V>, builder: Builder): super(builder) {
         this.clazz = clazz
     }
 
-    constructor(realm: Realm, limit: Int, clazz: Class<V>): super(realm, limit) {
+    constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, builder) {
         this.clazz = clazz
     }
 
@@ -41,25 +41,9 @@ abstract class BaseRemoteRepository<E, T, X, V> : BaseRepository<E, T, X> where 
         this.clazz = clazz
     }
 
-    constructor(limit: Int, idParent: Long?, clazz: Class<V>): super(limit, idParent) {
-        this.clazz = clazz
-    }
-
-    constructor(idParent: Long?, clazz: Class<V>): super(idParent) {
-        this.clazz = clazz
-    }
-
-    constructor(realm: Realm, limit:Int, idParent: Long?, clazz: Class<V>): super(realm, limit, idParent) {
-        this.clazz = clazz
-    }
-
-    constructor(realm: Realm, idParent: Long?, clazz: Class<V>): super(realm, idParent) {
-        this.clazz = clazz
-    }
-
-    abstract protected fun getApiList(api: V, offset: Int, limit: Int, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
-    abstract protected fun getObjApi(api: V, id: Long, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)
-    abstract protected fun createAPIRequestModel(): ApiRequestModel<*>
+    protected abstract fun getApiList(api: V, offset: Int, limit: Int, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
+    protected abstract fun getObjApi(api: V, id: Long, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)
+    protected abstract fun createAPIRequestModel(): ApiRequestModel<*>
 
     open fun getRemoteList(callback: (baseResponse: BaseResponse<List<E>>) -> Unit){
         getRemoteList(offset, callback, { api, offset, onResponse, onFailure ->
