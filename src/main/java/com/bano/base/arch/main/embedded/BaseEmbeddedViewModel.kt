@@ -6,15 +6,14 @@ import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.remote.BaseRemoteViewModel
-import com.bano.base.contract.BaseContract
 import io.realm.RealmModel
 
 /**
  * Created by bk_alexandre.pereira on 04/10/2017.
  *
  */
-abstract class BaseEmbeddedViewModel<E : BaseContract, T, X, F : BaseContract, Z, Y> :
-        BaseRemoteViewModel<E, T, X>() where T : RealmModel, T : BaseContract, Z : RealmModel, Z : BaseContract {
+abstract class BaseEmbeddedViewModel<E, T, X, F, Z, Y> :
+        BaseRemoteViewModel<E, T, X>() where T : RealmModel, Z : RealmModel {
 
     val holderMapLiveData = MutableLiveData<HolderMapResponse<E, F>>()
     val embeddedListLiveData = MutableLiveData<BaseResponse<List<F>>>()

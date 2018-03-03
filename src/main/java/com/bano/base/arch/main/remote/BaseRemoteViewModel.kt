@@ -3,15 +3,14 @@ package com.bano.base.arch.main.remote
 import android.arch.lifecycle.MutableLiveData
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.BaseViewModel
-import com.bano.base.contract.BaseContract
 import io.realm.RealmModel
 
 /**
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
-abstract class BaseRemoteViewModel<E : BaseContract, T, X> :
-        BaseViewModel<E, T, X>() where T : RealmModel, T : BaseContract {
+abstract class BaseRemoteViewModel<E, T, X> :
+        BaseViewModel<E, T, X>() where T : RealmModel {
 
     val responseCodeLiveData = MutableLiveData<Int>()
     val logoutLiveData = MutableLiveData<Boolean>()

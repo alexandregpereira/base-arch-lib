@@ -4,7 +4,6 @@ import com.bano.base.BaseResponse
 import com.bano.base.arch.main.BaseRepository
 import com.bano.base.arch.main.remote.BaseRemoteRepository
 import com.bano.base.arch.main.sync.BaseSyncRepository
-import com.bano.base.contract.BaseContract
 import io.realm.Realm
 import io.realm.RealmModel
 
@@ -12,8 +11,8 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 15/09/2017.
  *
  */
-abstract class BaseEmbeddedListRepository<E : BaseContract, T, X, Z : BaseContract, Y, W, V> : BaseRemoteRepository<E, T, X, V>
-        where T : BaseContract, T : RealmModel, Y : RealmModel, Y : BaseContract  {
+abstract class BaseEmbeddedListRepository<E, T, X, Z, Y, W, V> : BaseRemoteRepository<E, T, X, V>
+        where T : RealmModel, Y : RealmModel  {
 
     var embeddedRepository: BaseRepository<Z, Y, W>? = null
 

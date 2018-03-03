@@ -10,7 +10,7 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 20/10/2017.
  *
  */
-abstract class BasePostRepository<E : BaseContract, T, X, V, K> : BaseRemoteRepository<E, T, X, V>
+abstract class BasePostRepository<E, T, X, V, K> : BaseRemoteRepository<E, T, X, V>
         where T : RealmModel, T : BaseContract {
 
     constructor(clazz: Class<V>): super(clazz)

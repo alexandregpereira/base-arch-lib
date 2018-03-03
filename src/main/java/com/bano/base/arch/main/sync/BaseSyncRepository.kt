@@ -3,7 +3,6 @@ package com.bano.base.arch.main.sync
 import android.util.Log
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.remote.BaseRemoteRepository
-import com.bano.base.contract.BaseContract
 import io.realm.Realm
 import io.realm.RealmModel
 
@@ -12,7 +11,7 @@ import io.realm.RealmModel
  *
  */
 abstract class BaseSyncRepository<E, T, X, V> : BaseRemoteRepository<E, T, X, V>
-        where E : BaseContract, E : Syncable, T : RealmModel, T : Syncable, T : BaseContract {
+        where E : Syncable, T : RealmModel, T : Syncable {
 
     constructor(clazz: Class<V>): super(clazz)
 

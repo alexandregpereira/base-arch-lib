@@ -4,15 +4,14 @@ import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.ViewModel
 import com.bano.base.BaseResponse
-import com.bano.base.contract.BaseContract
 import io.realm.RealmModel
 
 /**
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
-abstract class BaseViewModel<E : BaseContract, T, X> :
-        ViewModel() where T : RealmModel, T : BaseContract {
+abstract class BaseViewModel<E, T, X> :
+        ViewModel() where T : RealmModel {
 
     var idParent: Long? = null
     var total: Int? = null
