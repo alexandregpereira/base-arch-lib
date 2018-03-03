@@ -17,7 +17,7 @@ import java.util.*
  * Created by bk_alexandre.pereira on 25/07/2017.
  *
  */
-abstract class BaseRepository<E : BaseContract, T, X> : Repository, MapperContract<E, T, X> where T : BaseContract, T : RealmModel  {
+abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> where T : RealmModel  {
     private val tag = "BaseRepository"
     val idParent: Long?
     /**
@@ -159,11 +159,12 @@ abstract class BaseRepository<E : BaseContract, T, X> : Repository, MapperContra
      */
     protected open fun handleDeletedDataFromApi(realm: Realm, localList: List<E>, apiList: List<X>) {
         localList.forEach { localObj ->
+            if(localObj !is BaseContract) return@forEach
             val apiObj = apiList.find { isSameObj(localObj, it) }
             if (apiObj == null) {
                 Log.d(tag, "$localObj excludeDate updated")
                 localObj.excludeDate = Date().time
-                realm.copyToRealmOrUpdate(createRealmObj(localObj))
+                realm.insertOrUpdate(createRealmObj(localObj))
             }
         }
     }
@@ -194,11 +195,11 @@ abstract class BaseRepository<E : BaseContract, T, X> : Repository, MapperContra
                     setFieldsFromApi(objLocal, objLocalUpdated)
                     objLocalUpdated
                 }
-                objToUpdate.order = order++
+                if(objToUpdate is BaseContract) objToUpdate.order = order++
                 realm.insertOrUpdate(createRealmObj(objToUpdate))
             } else {
                 val objToInsert = createObjFromObjApi(apiObj)
-                objToInsert.order = order++
+                if(objToInsert is BaseContract) objToInsert.order = order++
                 realm.insertOrUpdate(createRealmObj(objToInsert))
             }
         }
@@ -254,7 +255,7 @@ abstract class BaseRepository<E : BaseContract, T, X> : Repository, MapperContra
             onBeforeInsertData(realm, id, objApi)
             val objLocal = getObjQueryByApiObj(getRealmQueryTable(realm), objApi)?.findFirst()
             val objToUpdate = createObjFromObjApi(objApi)
-            if(objLocal != null) {
+            if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
                 objToUpdate.order = objLocal.order
             }
             realm.insertOrUpdate(createRealmObj(objToUpdate))
@@ -264,5 +265,4 @@ abstract class BaseRepository<E : BaseContract, T, X> : Repository, MapperContra
     }
 
     protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
-
 }

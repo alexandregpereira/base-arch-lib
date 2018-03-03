@@ -4,7 +4,6 @@ import android.util.Log
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.BaseRepository
 import com.bano.base.auth.OAuth2Service
-import com.bano.base.contract.BaseContract
 import com.bano.base.model.ApiRequestModel
 import io.realm.Realm
 import io.realm.RealmModel
@@ -12,16 +11,12 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.*
 import kotlin.collections.HashSet
-import kotlin.collections.List
-import kotlin.collections.any
-import kotlin.collections.find
-import kotlin.collections.remove
 
 /**
  * Created by bk_alexandre.pereira on 15/09/2017.
  *
  */
-abstract class BaseRemoteRepository<E : BaseContract, T, X, V> : BaseRepository<E, T, X> where T : BaseContract, T : RealmModel {
+abstract class BaseRemoteRepository<E, T, X, V> : BaseRepository<E, T, X> where T : RealmModel {
     private val tag = "BaseRepository"
     private var remoteObj: E? = null
     private val clazz: Class<V>

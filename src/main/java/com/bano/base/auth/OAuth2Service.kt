@@ -2,8 +2,6 @@ package com.bano.base.auth
 
 
 import com.bano.base.model.BaseApiRequestModel
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -48,17 +46,11 @@ object OAuth2Service {
         val client = buildClient(apiRequestModel)
         val retrofit = Retrofit.Builder()
                 //.addCallAdapterFactory(RxJavaCallAdapterFactory.create())
-                .addConverterFactory(GsonConverterFactory.create(buildGson()))
+                .addConverterFactory(GsonConverterFactory.create(apiRequestModel.buildGson()))
                 .client(client)
                 .baseUrl(apiRequestModel.url)
                 .build()
 
         return retrofit.create(clazz)
-    }
-
-    private fun buildGson(): Gson {
-        return GsonBuilder()
-                .setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ") // ISO 8601
-                .create()
     }
 }
