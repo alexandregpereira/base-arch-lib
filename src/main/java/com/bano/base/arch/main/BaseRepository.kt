@@ -206,6 +206,14 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
         }
     }
 
+    @WorkerThread
+    fun insertOrUpdateHashList(realm: Realm, apiList: HashSet<X>, afterInsert: (realm: Realm, apiObj: X) -> Unit) {
+        apiList.forEach {
+            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
+            afterInsert(realm, it)
+        }
+    }
+
     open fun update(e: E, callback: () -> Unit) {
         getRealm().executeTransactionAsync(Realm.Transaction { realm ->
             realm.copyToRealmOrUpdate(createRealmObj(e))
