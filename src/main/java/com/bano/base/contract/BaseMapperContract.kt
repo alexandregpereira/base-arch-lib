@@ -21,4 +21,18 @@ interface BaseMapperContract<E, T : RealmModel> : BaseObjMapperContract<E, T>{
         obsList?.forEach { list.add(createRealmObj(it)) }
         return list
     }
+
+    companion object {
+        fun <T> mapToRealmList(list: List<T>?, newInstance: (T) -> T): RealmList<T> {
+            val realmList = RealmList<T>()
+            list?.forEach { realmList.add(newInstance(it)) }
+            return realmList
+        }
+
+        fun <T> mapToList(list: RealmList<T>?, newInstance: (T) -> T): ArrayList<T> {
+            val realmList = ArrayList<T>()
+            list?.forEach { realmList.add(newInstance(it)) }
+            return realmList
+        }
+    }
 }
