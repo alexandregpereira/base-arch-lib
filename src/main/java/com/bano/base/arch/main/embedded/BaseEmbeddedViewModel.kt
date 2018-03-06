@@ -12,7 +12,7 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 04/10/2017.
  *
  */
-abstract class BaseEmbeddedViewModel<E, T, X, F, Z, Y> :
+abstract class BaseEmbeddedViewModel<E, T, X : Any, F, Z, Y : Any> :
         BaseRemoteViewModel<E, T, X>() where T : RealmModel, Z : RealmModel {
 
     val holderMapLiveData = MutableLiveData<HolderMapResponse<E, F>>()

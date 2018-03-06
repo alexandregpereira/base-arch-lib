@@ -9,7 +9,7 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
-abstract class BaseRemoteViewModel<E, T, X> :
+abstract class BaseRemoteViewModel<E, T, X : Any> :
         BaseViewModel<E, T, X>() where T : RealmModel {
 
     val responseCodeLiveData = MutableLiveData<Int>()

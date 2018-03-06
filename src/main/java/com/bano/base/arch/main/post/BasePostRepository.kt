@@ -10,16 +10,16 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 20/10/2017.
  *
  */
-abstract class BasePostRepository<E, T, X, V, K> : BaseRemoteRepository<E, T, X, V>
+abstract class BasePostRepository<E, T, X : Any, V, K> : BaseRemoteRepository<E, T, X, V>
         where T : RealmModel, T : BaseContract {
 
-    constructor(clazz: Class<V>): super(clazz)
+    constructor(realmClass: Class<T>, clazz: Class<V>): super(realmClass, clazz)
 
-    constructor(realm: Realm, clazz: Class<V>): super(realm, clazz)
+    constructor(realm: Realm, realmClass: Class<T>, clazz: Class<V>): super(realm, realmClass, clazz)
 
-    constructor(clazz: Class<V>, builder: Builder): super(clazz, builder)
+    constructor(clazz: Class<V>, builder: Builder<T>): super(clazz, builder)
 
-    constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, clazz, builder)
+    constructor(realm: Realm, clazz: Class<V>, builder: Builder<T>): super(realm, clazz, builder)
 
     abstract protected fun getApiList(api: V, objDto: K, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
     abstract protected fun getObjApi(api: V, objDto: K, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)

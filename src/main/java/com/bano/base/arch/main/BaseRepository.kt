@@ -11,6 +11,8 @@ import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
 import io.realm.RealmResults
+import io.realm.annotations.PrimaryKey
+import java.lang.reflect.Modifier
 import java.util.*
 
 
@@ -18,7 +20,7 @@ import java.util.*
  * Created by bk_alexandre.pereira on 25/07/2017.
  *
  */
-abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> where T : RealmModel  {
+abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, X> where T : RealmModel  {
     private val tag = "BaseRepository"
     val idParent: Long?
     /**
@@ -31,48 +33,62 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
     var total: Int? = null
     private val mExcludeFieldName: String?
     private val mOrderFieldName: String?
+    private val mPrimaryKeyFieldName: String
+    private val mRealmClass: Class<T>
 
-    constructor(): super() {
+    constructor(clazz: Class<T>): super() {
         idParent = null
         limit = 0
         mExcludeFieldName = null
         mOrderFieldName = null
+        mRealmClass = clazz
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName(clazz)
     }
 
-    constructor(builder: Builder): super() {
+    constructor(builder: Builder<T>): super() {
         idParent = builder.idParent
         limit = builder.limit
         resumeMode = builder.resumeMode
         mExcludeFieldName = builder.excludeFieldName
         mOrderFieldName = builder.orderFieldName
         offset = 0
+        mRealmClass = builder.realmClass
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
     }
 
-    constructor(realm: Realm, builder: Builder): super(realm) {
+    constructor(realm: Realm, builder: Builder<T>): super(realm) {
         idParent = builder.idParent
         limit = builder.limit
         resumeMode = builder.resumeMode
         mExcludeFieldName = builder.excludeFieldName
         mOrderFieldName = builder.orderFieldName
         offset = 0
+        mRealmClass = builder.realmClass
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
     }
 
-    constructor(realm: Realm) : super(realm) {
+    constructor(realm: Realm, clazz: Class<T>) : super(realm) {
         idParent = null
         limit = 0
         offset = 0
         mExcludeFieldName = null
         mOrderFieldName = null
+        mRealmClass = clazz
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
     }
+
+    private fun getPrimaryKeyFieldName(clazz: Class<T>): String = clazz.declaredFields.find {
+        it.annotations.any { it is PrimaryKey }
+    }?.name ?: throw IllegalArgumentException("$clazz must have primary key")
 
     protected open fun getTagLog(): String = "BaseRepository"
-    protected abstract fun getRealmQueryTable(realm: Realm): RealmQuery<T>
-    protected abstract fun getIdFieldName(): String
     protected abstract fun getIdParentFieldName(): String?
     protected abstract fun isSameObj(obj: E, apiObj: X): Boolean
-    protected abstract fun getObjQueryByApiObj(realmQuery: RealmQuery<T>, apiObj: X): RealmQuery<T>?
 
-    open fun getLocalObj(id: Long): E? = getLocalObj(getRealmQueryTable(getRealm()).equalTo(getIdFieldName(), id))
+    open fun getRealmQueryTable(realm: Realm): RealmQuery<T> = realm.where(mRealmClass)
+
+    open fun getLocalObj(id: Long): E? =
+        getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
 
     fun getLocalObj(realmQuery: RealmQuery<T>): E? {
         val realmModel = realmQuery.findFirst() ?: return null
@@ -262,7 +278,30 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
     protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
         getRealm().executeTransactionAsync(Realm.Transaction { realm ->
             onBeforeInsertData(realm, id, objApi)
-            val objLocal = getObjQueryByApiObj(getRealmQueryTable(realm), objApi)?.findFirst()
+            val idField = objApi::javaClass.get().declaredFields.find { field ->
+                field.annotations.any { it is PrimaryKey }
+            }
+
+            val objLocal = if(idField != null) {
+                val idFieldValue = if(Modifier.isPublic(idField.modifiers)) {
+                    idField.get(objApi)
+                }
+                else {
+                    val methods = objApi::javaClass.get().declaredMethods
+                    methods.find { it.name?.toLowerCase()?.contains("get${idField.name.toLowerCase()}") == true }?.invoke(objApi)
+                }
+
+                when (idFieldValue) {
+                    is Long -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    is String -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    is Int -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    else -> null
+                }
+            } else {
+                Log.e(getTagLog(), "$objApi don't have PrimaryKey, the order will be missed")
+                null
+            }
+
             val objToUpdate = createObjFromObjApi(objApi)
             if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
                 objToUpdate.order = objLocal.order
@@ -275,7 +314,7 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
 
     protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
 
-    class Builder {
+    class Builder<T : RealmModel>(internal val realmClass: Class<T>) {
         internal var excludeFieldName: String? = null
         internal var orderFieldName: String? = null
         internal var resumeMode: Boolean = false
@@ -283,32 +322,32 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
         internal var total: Int? = null
         internal var idParent: Long? = null
 
-        fun setExcludeDateFieldName(fieldName: String): Builder {
+        fun setExcludeDateFieldName(fieldName: String): Builder<T> {
             excludeFieldName = fieldName
             return this
         }
 
-        fun setOrderFieldName(fieldName: String): Builder {
+        fun setOrderFieldName(fieldName: String): Builder<T> {
             orderFieldName = fieldName
             return this
         }
 
-        fun resumeMode(): Builder {
+        fun resumeMode(): Builder<T> {
             resumeMode = true
             return this
         }
 
-        fun setLimitQuery(limit: Int): Builder {
+        fun setLimitQuery(limit: Int): Builder<T> {
             this.limit = limit
             return this
         }
 
-        fun setTotalPagination(total: Int): Builder {
+        fun setTotalPagination(total: Int): Builder<T> {
             this.total = total
             return this
         }
 
-        fun setIdParent(idParent: Long?): Builder {
+        fun setIdParent(idParent: Long?): Builder<T> {
             this.idParent = idParent
             return this
         }

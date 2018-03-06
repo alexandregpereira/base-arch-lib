@@ -10,7 +10,7 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
-abstract class BaseViewModel<E, T, X> :
+abstract class BaseViewModel<E, T, X : Any> :
         ViewModel() where T : RealmModel {
 
     var idParent: Long? = null

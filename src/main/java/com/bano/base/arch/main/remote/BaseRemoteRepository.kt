@@ -16,7 +16,7 @@ import kotlin.collections.HashSet
  * Created by bk_alexandre.pereira on 15/09/2017.
  *
  */
-abstract class BaseRemoteRepository<E, T, X, V> : BaseRepository<E, T, X> where T : RealmModel {
+abstract class BaseRemoteRepository<E, T, X : Any, V> : BaseRepository<E, T, X> where T : RealmModel {
     private val tag = "BaseRepository"
     private var remoteObj: E? = null
     private val clazz: Class<V>
@@ -25,19 +25,19 @@ abstract class BaseRemoteRepository<E, T, X, V> : BaseRepository<E, T, X> where 
     private var mRequestObjPoolItemInProgress = false
     private val mCachePool = HashSet<Int>()
 
-    constructor(clazz: Class<V>): super() {
+    constructor(realmClass: Class<T>, clazz: Class<V>): super(realmClass) {
         this.clazz = clazz
     }
 
-    constructor(clazz: Class<V>, builder: Builder): super(builder) {
+    constructor(clazz: Class<V>, builder: Builder<T>): super(builder) {
         this.clazz = clazz
     }
 
-    constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, builder) {
+    constructor(realm: Realm, clazz: Class<V>, builder: Builder<T>): super(realm, builder) {
         this.clazz = clazz
     }
 
-    constructor(realm: Realm, clazz: Class<V>): super(realm) {
+    constructor(realm: Realm, realmClass: Class<T>, clazz: Class<V>): super(realm, realmClass) {
         this.clazz = clazz
     }
 

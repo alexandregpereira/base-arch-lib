@@ -10,10 +10,10 @@ import io.realm.RealmObject
  */
 abstract class BaseSingleRepository<T : RealmObject> : BaseRepository<T, T, T> {
 
-    constructor(): super()
-    constructor(builder: Builder): super(builder)
-    constructor(realm: Realm, builder: Builder): super(realm, builder)
-    constructor(realm: Realm) : super(realm)
+    constructor(realmClass: Class<T>): super(realmClass)
+    constructor(builder: Builder<T>): super(builder)
+    constructor(realm: Realm, builder: Builder<T>): super(realm, builder)
+    constructor(realm: Realm, realmClass: Class<T>) : super(realm, realmClass)
 
     override fun createRealmObj(obj: T): T = createObj(obj)
     override fun createObjFromObjApi(obj: T): T = createObj(obj)
