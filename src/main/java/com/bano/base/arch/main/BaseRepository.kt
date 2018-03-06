@@ -308,7 +308,7 @@ abstract class BaseRepository<E, T, X> : Repository, MapperContract<E, T, X> whe
             return this
         }
 
-        fun setIdParent(idParent: Long): Builder {
+        fun setIdParent(idParent: Long?): Builder {
             this.idParent = idParent
             return this
         }

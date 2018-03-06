@@ -20,6 +20,8 @@ abstract class BaseEmbeddedListRepository<E, T, X, Z, Y, W, V> : BaseRemoteRepos
 
     constructor(realm: Realm, clazz: Class<V>, builder: Builder): super(realm, clazz, builder)
 
+    constructor(clazz: Class<V>, builder: Builder): super(clazz, builder)
+
     constructor(realm: Realm, clazz: Class<V>): super(realm, clazz)
 
     protected abstract fun getEmbeddedListFromApi(apiData: X): List<W>?
