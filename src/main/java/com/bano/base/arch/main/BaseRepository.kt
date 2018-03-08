@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.support.annotation.WorkerThread
 import android.util.Log
+import com.bano.base.annotation.IdParent
 import com.bano.base.arch.Repository
 import com.bano.base.contract.BaseContract
 import com.bano.base.contract.MapperContract
@@ -82,8 +83,12 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }?.name ?: throw IllegalArgumentException("$clazz must have primary key")
 
     protected open fun getTagLog(): String = "BaseRepository"
-    protected abstract fun getIdParentFieldName(): String?
-    protected abstract fun isSameObj(obj: E, apiObj: X): Boolean
+
+    protected open fun getIdParentFieldName(): String? = mRealmClass.declaredFields.find {
+        it.annotations.any { it is IdParent }
+    }?.name
+
+    protected open fun isSameObj(obj: E, apiObj: X): Boolean = obj == apiObj
 
     open fun getRealmQueryTable(realm: Realm): RealmQuery<T> = realm.where(mRealmClass)
 
