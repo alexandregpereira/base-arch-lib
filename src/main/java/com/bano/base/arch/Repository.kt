@@ -34,6 +34,7 @@ abstract class Repository {
     }
 
     fun resetRealm() {
+        Log.d("Repository", "${this.javaClass.simpleName} resetRealm()")
         mRealm?.close()
         mRealm = null
     }
