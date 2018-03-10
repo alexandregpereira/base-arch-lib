@@ -223,6 +223,14 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         resetRealm()
     }
 
+    @WorkerThread
+    open fun deleteAllInMainThread() {
+        getRealm().executeTransaction { realm ->
+            getDatabaseList(getRealmQueryTable(realm)).deleteAllFromRealm()
+        }
+        resetRealm()
+    }
+
     fun insertOrUpdateList(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
         getRealm().executeTransactionAsync(Realm.Transaction { realm ->
             insertOrUpdateList(offset, realm, apiList)
