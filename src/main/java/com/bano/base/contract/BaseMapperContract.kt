@@ -29,6 +29,12 @@ interface BaseMapperContract<E, T : RealmModel> : BaseObjMapperContract<E, T>{
             return realmList
         }
 
+        fun <E, T : RealmModel> mapToRealModelList(list: List<E>?, newInstance: (E) -> T): RealmList<T> {
+            val realmList = RealmList<T>()
+            list?.forEach { realmList.add(newInstance(it)) }
+            return realmList
+        }
+
         fun <T> mapToList(list: RealmList<T>?, newInstance: (T) -> T): ArrayList<T> {
             val realmList = ArrayList<T>()
             list?.forEach { realmList.add(newInstance(it)) }

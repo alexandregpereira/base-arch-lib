@@ -273,10 +273,20 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
      * Don't call this method in the main thread
      */
     @WorkerThread
-    fun insertOrUpdateHashList(realm: Realm, apiList: HashSet<X>) {
+    fun insertOrUpdateHashList(realm: Realm, apiList: Set<X>) {
         apiList.forEach {
             realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
         }
+    }
+
+    @WorkerThread
+    fun insertOrUpdate(list: Set<E>) {
+        getRealm().executeTransaction { realm ->
+            list.forEach {
+                realm.insertOrUpdate(createRealmObj(it))
+            }
+        }
+        resetRealm()
     }
 
     open fun update(e: E, callback: () -> Unit) {
