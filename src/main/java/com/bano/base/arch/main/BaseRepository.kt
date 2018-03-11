@@ -329,6 +329,17 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         resetRealm()
     }
 
+    @WorkerThread
+    fun update(eList: Set<E>) {
+        getRealm().executeTransaction({ realm ->
+            eList.forEach {
+                realm.insertOrUpdate(createRealmObj(it))
+                Log.d(tag, "$it updated")
+            }
+        })
+        resetRealm()
+    }
+
     open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
         getRealm().executeTransactionAsync(Realm.Transaction { realm ->
             realm.insertOrUpdate(createRealmObj(e))
