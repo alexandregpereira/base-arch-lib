@@ -92,14 +92,18 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
 
     open fun getRealmQueryTable(realm: Realm): RealmQuery<T> = realm.where(mRealmClass)
 
-    open fun getLocalObj(id: Any): E? {
-        val e = when(id) {
+    open fun getLocalObj(realm: Realm, id: Any): E? {
+        return when(id) {
             is Long -> getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
             is String -> getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
             is Int -> getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
             else -> throw IllegalArgumentException("$id is not supported")
 
         }
+    }
+
+    open fun getLocalObj(id: Any): E? {
+        val e = getLocalObj(getRealm(), id)
         resetRealm()
         return e
     }
@@ -213,6 +217,18 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
                 realm.insertOrUpdate(createRealmObj(localObj))
             }
         }
+    }
+
+    open fun delete(getRealmQuery: (realmQuery: RealmQuery<T>) -> RealmQuery<T>?, callback: (deleted: Boolean) -> Unit) {
+        val realmClass = mRealmClass
+        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+            getRealmQuery(realm.where(realmClass))?.findAll()?.deleteAllFromRealm()
+        }, Realm.Transaction.OnSuccess {
+            val realmQuery = getRealmQuery(getRealmQueryTable())
+            if(realmQuery != null) callback(getLocalList(realmQuery).isEmpty())
+            else callback(false)
+            resetRealm()
+        })
     }
 
     @WorkerThread
@@ -349,11 +365,14 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         resetRealm()
     }
 
-    open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
+    open fun insertOrUpdate(e: E, callback: (e: E?) -> Unit) {
         getRealm().executeTransactionAsync(Realm.Transaction { realm ->
             realm.insertOrUpdate(createRealmObj(e))
         }, Realm.Transaction.OnSuccess {
-            callback(e)
+            val fieldValue = getIdFieldValue(createRealmObj(e))
+            val localObj = if(fieldValue == null) null else getLocalObj(getRealm(), fieldValue)
+            resetRealm()
+            callback(localObj)
         })
     }
 
@@ -417,6 +436,26 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         }, Realm.Transaction.OnSuccess {
             callback(getInsertedObj(id, objApi))
         })
+    }
+
+    private fun getIdFieldValue(realmObj: T): Any? {
+        val idField = realmObj::javaClass.get().declaredFields.find { field ->
+            field.annotations.any { it is PrimaryKey }
+        }
+
+        if(idField != null) {
+            return if(Modifier.isPublic(idField.modifiers)) {
+                idField.get(realmObj)
+            }
+            else {
+                val methods = realmObj::javaClass.get().declaredMethods
+                methods.find { it.name?.toLowerCase()?.contains("get${idField.name.toLowerCase()}") == true }?.invoke(realmObj)
+            }
+        } else {
+            Log.e(getTagLog(), "$realmObj don't have PrimaryKey")
+        }
+
+        return null
     }
 
     protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)

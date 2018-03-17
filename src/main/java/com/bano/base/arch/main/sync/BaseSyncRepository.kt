@@ -40,9 +40,9 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteRepository<E, T,
         }
     }
 
-    override fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
+    override fun insertOrUpdate(e: E, callback: (e: E?) -> Unit) {
         super.insertOrUpdate(e) {
-            if(it.isPendentSyncStatus()) {
+            if(it != null && it.isPendentSyncStatus()) {
                 Log.d(getTagLog(), "sendPendentSync Obj")
                 val api = getApi()
                 sendPendentSync(api, it) { result ->
