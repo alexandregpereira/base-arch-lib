@@ -15,4 +15,11 @@ object RepositoryUtil {
         Log.d(performanceTag, "performance: ${(endTime - startTime)}")
         return x
     }
+
+    fun calculatePerformance(performanceTag: String, callback: () -> Unit?) {
+        val startTime = System.currentTimeMillis()
+        callback()
+        val endTime = System.currentTimeMillis()
+        Log.d(performanceTag, "performance: ${(endTime - startTime)}")
+    }
 }
