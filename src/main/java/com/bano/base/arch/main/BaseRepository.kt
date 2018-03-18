@@ -379,9 +379,14 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     @WorkerThread
     open fun insertOrUpdate(e: E) {
         getRealm().executeTransaction({ realm ->
-            realm.insertOrUpdate(createRealmObj(e))
+            insertOrUpdate(realm, e)
         })
         resetRealm()
+    }
+
+    @WorkerThread
+    open fun insertOrUpdate(realm: Realm, e: E) {
+        realm.insertOrUpdate(createRealmObj(e))
     }
 
     fun insertOrUpdateNoCallback(t: T, callback: (e: E) -> Unit) {
