@@ -20,7 +20,7 @@ abstract class BaseViewModel<E, T, X : Any> :
     open val listLiveData = MutableLiveData<BaseResponse<List<E>>>()
     open val objLiveData = MutableLiveData<BaseResponse<E>>()
 
-    abstract protected fun createRepository(idParent: Long?): BaseRepository<E, T, X>
+    protected abstract fun createRepository(idParent: Long?): BaseRepository<E, T, X>
 
     protected fun getRepository(): BaseRepository<E, T, X> {
         val repository =
@@ -66,12 +66,6 @@ abstract class BaseViewModel<E, T, X : Any> :
             objLiveData.value = BaseResponse(obj)
         }
         return objLiveDataTmp
-    }
-
-    fun updateInAsync(obj: E) {
-        getRepository().update(obj) {
-            objLiveData.postValue(BaseResponse(obj))
-        }
     }
 
     fun updateInAsync(objList: List<E>) {

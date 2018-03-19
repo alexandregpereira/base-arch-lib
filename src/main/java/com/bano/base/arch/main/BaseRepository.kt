@@ -232,10 +232,13 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     fun insertOrUpdateList(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             insertOrUpdateList(offset, realm, apiList)
         }, Realm.Transaction.OnSuccess {
-            callback(getLocalList())
+            val localList = getLocalList()
+            mainRealm.close()
+            callback(localList)
         })
     }
 
@@ -299,10 +302,12 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     open fun update(e: E, callback: () -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             realm.insertOrUpdate(createRealmObj(e))
             Log.d(tag, "$e updated")
         }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
             callback()
         })
     }
@@ -317,12 +322,14 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     fun update(eList: List<E>, callback: () -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             eList.forEach {
                 realm.insertOrUpdate(createRealmObj(it))
                 Log.d(tag, "$it updated")
             }
         }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
             callback()
         })
     }
@@ -350,9 +357,11 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             realm.insertOrUpdate(createRealmObj(e))
         }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
             callback(e)
         })
     }
@@ -383,7 +392,8 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             onBeforeInsertData(realm, id, objApi)
             val idField = objApi::javaClass.get().declaredFields.find { field ->
                 field.annotations.any { it is PrimaryKey }
@@ -415,7 +425,9 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
             }
             realm.insertOrUpdate(createRealmObj(objToUpdate))
         }, Realm.Transaction.OnSuccess {
-            callback(getInsertedObj(id, objApi))
+            val objInserted = getInsertedObj(id, objApi)
+            mainRealm.close()
+            callback(objInserted)
         })
     }
 
