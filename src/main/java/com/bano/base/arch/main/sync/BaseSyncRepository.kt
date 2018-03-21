@@ -5,13 +5,14 @@ import com.bano.base.BaseResponse
 import com.bano.base.arch.main.remote.BaseRemoteRepository
 import io.realm.Realm
 import io.realm.RealmModel
+import io.realm.RealmQuery
 
 /**
  * Created by bk_alexandre.pereira on 06/10/2017.
  *
  */
 abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteRepository<E, T, X, V>
-        where E : Syncable, T : RealmModel, T : Syncable {
+        where E : Syncable, T : RealmModel {
 
     constructor(realmClass: Class<T>, clazz: Class<V>): super(realmClass, clazz)
 
@@ -71,18 +72,26 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteRepository<E, T,
     }
 
     fun checkPendentSync() {
-        val syncList = map(getRealmQueryTable().equalTo(Syncable.SYNC_STATUS_FIELD_NAME, Syncable.SYNC_PENDENT_STATUS).findAll())
+        val syncList = map(getPendentSyncQuery(getRealmQueryTable()).findAll())
         if(!syncList.isEmpty()) {
             Log.d(getTagLog(), "sendPendentSync List")
             val api = getApi()
             sendPendentSync(api, syncList) { result ->
                 if(result) {
-                    syncList.forEach {
-                        it.syncStatus = Syncable.SYNC_REALIZED_STATUS
-                    }
-                    update(syncList) {}
+                    updateToSyncRealized(syncList)
                 }
             }
         }
+    }
+
+    open fun updateToSyncRealized(syncList: List<E>) {
+        syncList.forEach {
+            it.syncStatus = Syncable.SYNC_REALIZED_STATUS
+        }
+        update(syncList) {}
+    }
+
+    open fun getPendentSyncQuery(realmQuery: RealmQuery<T>): RealmQuery<T> {
+        return realmQuery.equalTo(Syncable.SYNC_STATUS_FIELD_NAME, Syncable.SYNC_PENDENT_STATUS)
     }
 }

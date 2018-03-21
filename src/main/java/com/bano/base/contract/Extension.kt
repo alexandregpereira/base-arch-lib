@@ -6,7 +6,7 @@ import io.realm.RealmList
  * Created by bk_alexandre.pereira on 16/03/2018.
  *
  */
-fun <T> List<T>?.toRealmList(newInstance: (T) -> T): RealmList<T> {
+fun <E, T> List<E>?.toRealmList(newInstance: (E) -> T): RealmList<T> {
     val realmList = RealmList<T>()
     this?.forEach { realmList.add(newInstance(it)) }
     return realmList
@@ -21,8 +21,8 @@ fun <T> List<T>?.toRealmList(): RealmList<T> {
     return realmList
 }
 
-fun <T> RealmList<T>?.toArrayList(newInstance: (T) -> T): ArrayList<T> {
-    val realmList = ArrayList<T>()
+fun <E, T> RealmList<T>?.toArrayList(newInstance: (T) -> E): ArrayList<E> {
+    val realmList = ArrayList<E>()
     this?.forEach { realmList.add(newInstance(it)) }
     return realmList
 }

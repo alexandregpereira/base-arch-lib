@@ -270,6 +270,50 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         }
     }
 
+
+    protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            onBeforeInsertData(realm, id, objApi)
+            val idField = objApi::javaClass.get().declaredFields.find { field ->
+                field.annotations.any { it is PrimaryKey }
+            }
+
+            val objLocal = if(idField != null) {
+                val idFieldValue = if(Modifier.isPublic(idField.modifiers)) {
+                    idField.get(objApi)
+                }
+                else {
+                    val methods = objApi::javaClass.get().declaredMethods
+                    methods.find { it.name?.toLowerCase()?.contains("get${idField.name.toLowerCase()}") == true }?.invoke(objApi)
+                }
+
+                when (idFieldValue) {
+                    is Long -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    is String -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    is Int -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    else -> null
+                }
+            } else {
+                Log.e(getTagLog(), "$objApi don't have PrimaryKey, the order will be missed")
+                null
+            }
+
+            val objToUpdate = createObjFromObjApi(objApi)
+            if(objLocal != null) setFieldsFromApi(createObj(objLocal), objToUpdate)
+            if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
+                objToUpdate.order = objLocal.order
+            }
+            realm.insertOrUpdate(createRealmObj(objToUpdate))
+        }, Realm.Transaction.OnSuccess {
+            val objInserted = getInsertedObj(id, objApi)
+            mainRealm.close()
+            callback(objInserted)
+        })
+    }
+
+    protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
+
     /**
      * Call this method inside a transaction.
      * Insert or update list in same thread that this method was call.
@@ -279,6 +323,13 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     fun insertOrUpdateHashList(realm: Realm, apiList: Set<X>) {
         apiList.forEach {
             realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
+        }
+    }
+
+    @WorkerThread
+    fun insertOrUpdate(realm: Realm, apiList: List<E>) {
+        apiList.forEach {
+            realm.insertOrUpdate(createRealmObj(it))
         }
     }
 
@@ -390,48 +441,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
 
         })
     }
-
-    protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
-            onBeforeInsertData(realm, id, objApi)
-            val idField = objApi::javaClass.get().declaredFields.find { field ->
-                field.annotations.any { it is PrimaryKey }
-            }
-
-            val objLocal = if(idField != null) {
-                val idFieldValue = if(Modifier.isPublic(idField.modifiers)) {
-                    idField.get(objApi)
-                }
-                else {
-                    val methods = objApi::javaClass.get().declaredMethods
-                    methods.find { it.name?.toLowerCase()?.contains("get${idField.name.toLowerCase()}") == true }?.invoke(objApi)
-                }
-
-                when (idFieldValue) {
-                    is Long -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
-                    is String -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
-                    is Int -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
-                    else -> null
-                }
-            } else {
-                Log.e(getTagLog(), "$objApi don't have PrimaryKey, the order will be missed")
-                null
-            }
-
-            val objToUpdate = createObjFromObjApi(objApi)
-            if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
-                objToUpdate.order = objLocal.order
-            }
-            realm.insertOrUpdate(createRealmObj(objToUpdate))
-        }, Realm.Transaction.OnSuccess {
-            val objInserted = getInsertedObj(id, objApi)
-            mainRealm.close()
-            callback(objInserted)
-        })
-    }
-
-    protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
 
     class Builder<T : RealmModel>(internal val realmClass: Class<T>) {
         internal var excludeFieldName: String? = null
