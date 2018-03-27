@@ -31,14 +31,14 @@ abstract class BaseEmbeddedViewModel<E, T, X : Any, F, Z, Y : Any> :
         val repository = getRepository() as? BaseEmbeddedListRepository<E, T, X, F, Z, Y, *> ?:  throw IllegalAccessException("repository must be BaseEmbeddedListRepository")
         loadingLiveData.value = true
         repository.getRemoteObj(id) { baseResponse ->
+            loadingLiveData.value = false
+            if(baseResponse.responseCode == BaseResponse.CACHE_MODE_CODE) return@getRemoteObj
+            responseCodeLiveData.value = baseResponse.responseCode
             onLoadRemote(id, baseResponse, repository)
         }
     }
 
     protected open fun onLoadRemote(id: Long, baseResponse: BaseResponse<E>, repository: BaseEmbeddedListRepository<E, T, X, F, Z, Y, *>) {
-        loadingLiveData.value = false
-        if(baseResponse.responseCode == BaseResponse.CACHE_MODE_CODE) return
-        responseCodeLiveData.value = baseResponse.responseCode
         val embeddedLocalList = repository.getEmbeddedRepository(repository.getRealm(), id).getLocalList()
         val localObj = baseResponse.value ?: repository.getLocalObj(id)
         holderMapLiveData.value = HolderMapResponse(localObj, embeddedLocalList, true)
