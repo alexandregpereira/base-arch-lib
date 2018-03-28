@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.support.annotation.WorkerThread
 import android.util.Log
+import com.bano.base.annotation.IdParent
 import com.bano.base.arch.Repository
 import com.bano.base.contract.BaseContract
 import com.bano.base.contract.MapperContract
@@ -82,13 +83,26 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }?.name ?: throw IllegalArgumentException("$clazz must have primary key")
 
     protected open fun getTagLog(): String = "BaseRepository"
-    protected abstract fun getIdParentFieldName(): String?
-    protected abstract fun isSameObj(obj: E, apiObj: X): Boolean
+
+    protected open fun getIdParentFieldName(): String? = mRealmClass.declaredFields.find {
+        it.annotations.any { it is IdParent }
+    }?.name
+
+    protected open fun isSameObj(obj: E, apiObj: X): Boolean = obj == apiObj
 
     open fun getRealmQueryTable(realm: Realm): RealmQuery<T> = realm.where(mRealmClass)
 
-    open fun getLocalObj(id: Long): E? =
-        getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
+    open fun getLocalObj(id: Any): E? {
+        val e = when(id) {
+            is Long -> getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
+            is String -> getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
+            is Int -> getLocalObj(getRealmQueryTable(getRealm()).equalTo(mPrimaryKeyFieldName, id))
+            else -> throw IllegalArgumentException("$id is not supported")
+
+        }
+        resetRealm()
+        return e
+    }
 
     fun getLocalObj(realmQuery: RealmQuery<T>): E? {
         val realmModel = realmQuery.findFirst() ?: return null
@@ -101,23 +115,50 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         else getRealmQueryTable(getRealm()).equalTo(idParentFieldName, idParent)
     }
 
-    fun getLocalList(): List<E> = map(getDatabaseList())
-    fun getLocalList(realmQuery: RealmQuery<T>): List<E> = map(getDatabaseList(realmQuery))
-    private fun getDatabaseList(): RealmResults<T> = sortQuery(getRealmQueryTable())
-    private fun getDatabaseList(realmQuery: RealmQuery<T>): RealmResults<T> = sortQuery(realmQuery)
+    fun getLocalList(): List<E> {
+        val eList = map(getDatabaseList())
+        resetRealm()
+        return eList
+    }
+    fun getLocalList(orderFieldName: String): List<E> {
+        val eList = map(getDatabaseList(orderFieldName))
+        resetRealm()
+        return eList
+    }
+    fun getLocalList(realmQuery: RealmQuery<T>): List<E> {
+        val eList = map(getDatabaseList(realmQuery))
+        resetRealm()
+        return eList
+    }
+    private fun getDatabaseList(): RealmResults<T> = getQueryByOrder(getRealmQueryTable())
+    private fun getDatabaseList(orderFieldName: String): RealmResults<T> = getQueryByOrder(orderFieldName, getRealmQueryTable())
+    private fun getDatabaseList(realmQuery: RealmQuery<T>): RealmResults<T> = getQueryByOrder(realmQuery)
 
-    protected open fun sortQuery(realmQuery: RealmQuery<T>): RealmResults<T> =
+    protected open fun getQueryByOrder(realmQuery: RealmQuery<T>): RealmResults<T> =
             getQueryByOrder(offset, realmQuery)
 
     private fun getQueryByOrder(offset: Int, realmQuery: RealmQuery<T>): RealmResults<T> {
+        return getQueryByOrder(offset, mOrderFieldName, realmQuery)
+    }
+
+    private fun getQueryByOrder(orderFieldName: String?, realmQuery: RealmQuery<T>): RealmResults<T> {
+        return getQueryByOrder(offset, orderFieldName, realmQuery)
+    }
+
+    private fun getQueryByOrder(offset: Int, orderFieldName: String?, realmQuery: RealmQuery<T>): RealmResults<T> {
         val idParentFieldName = getIdParentFieldName()
         if (idParent != null && idParentFieldName != null) realmQuery.equalTo(idParentFieldName, idParent)
-        return if(limit > 0 && mOrderFieldName != null && mExcludeFieldName != null) realmQuery
-                .between(mOrderFieldName, offset, (offset + limit) -1)
-                .isNull(mExcludeFieldName).sort(mOrderFieldName).findAll()
-        else if(mOrderFieldName != null && mExcludeFieldName != null) realmQuery
-                .isNull(mExcludeFieldName).sort(mOrderFieldName).findAll()
-        else realmQuery.findAll()
+
+        if(limit > 0 && orderFieldName != null)
+            realmQuery.between(orderFieldName, offset, (offset + limit) -1)
+
+        if(mExcludeFieldName != null)
+            realmQuery.isNull(mExcludeFieldName)
+
+        if(orderFieldName != null)
+            realmQuery.sort(orderFieldName)
+
+        return realmQuery.findAll()
     }
 
     /**
@@ -174,11 +215,30 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         }
     }
 
+    @WorkerThread
+    open fun deleteInMainThread(getRealmQuery: (realmQuery: RealmQuery<T>) -> RealmQuery<T>) {
+        getRealm().executeTransaction { realm ->
+            getDatabaseList(getRealmQuery(getRealmQueryTable(realm))).deleteAllFromRealm()
+        }
+        resetRealm()
+    }
+
+    @WorkerThread
+    open fun deleteAllInMainThread() {
+        getRealm().executeTransaction { realm ->
+            getDatabaseList(getRealmQueryTable(realm)).deleteAllFromRealm()
+        }
+        resetRealm()
+    }
+
     fun insertOrUpdateList(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             insertOrUpdateList(offset, realm, apiList)
         }, Realm.Transaction.OnSuccess {
-            callback(getLocalList())
+            val localList = getLocalList()
+            mainRealm.close()
+            callback(localList)
         })
     }
 
@@ -210,73 +270,10 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         }
     }
 
-    /**
-     * Call this method inside a transaction.
-     * Insert or update list in same thread that this method was call.
-     * Don't call this method in the main thread
-     */
-    @WorkerThread
-    fun insertOrUpdateHashList(realm: Realm, apiList: HashSet<X>) {
-        apiList.forEach {
-            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
-        }
-    }
-
-    @WorkerThread
-    fun insertOrUpdateHashList(realm: Realm, apiList: HashSet<X>, afterInsert: (realm: Realm, apiObj: X) -> Unit) {
-        apiList.forEach {
-            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
-            afterInsert(realm, it)
-        }
-    }
-
-    open fun update(e: E, callback: () -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
-            realm.copyToRealmOrUpdate(createRealmObj(e))
-            Log.d(tag, "$e updated")
-        }, Realm.Transaction.OnSuccess {
-            callback()
-        })
-    }
-
-    fun update(eList: List<E>, callback: () -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
-            eList.forEach {
-                realm.insertOrUpdate(createRealmObj(it))
-                Log.d(tag, "$it updated")
-            }
-        }, Realm.Transaction.OnSuccess {
-            callback()
-        })
-    }
-
-    open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
-            realm.insertOrUpdate(createRealmObj(e))
-        }, Realm.Transaction.OnSuccess {
-            callback(e)
-        })
-    }
-
-    fun insertOrUpdateNoCallback(t: T, callback: (e: E) -> Unit) {
-
-        val handlerThread = HandlerThread("MyHandlerThread")
-        handlerThread.start()
-        val looper = handlerThread.looper
-        val handler = Handler(looper)
-        handler.post({
-
-            getRealm().executeTransactionAsync(Realm.Transaction { realm ->
-                realm.insertOrUpdate(t)
-            }, Realm.Transaction.OnSuccess {
-                callback(createObj(t))
-            })
-
-        })
-    }
 
     protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
-        getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             onBeforeInsertData(realm, id, objApi)
             val idField = objApi::javaClass.get().declaredFields.find { field ->
                 field.annotations.any { it is PrimaryKey }
@@ -303,16 +300,147 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
             }
 
             val objToUpdate = createObjFromObjApi(objApi)
+            if(objLocal != null) setFieldsFromApi(createObj(objLocal), objToUpdate)
             if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
                 objToUpdate.order = objLocal.order
             }
             realm.insertOrUpdate(createRealmObj(objToUpdate))
         }, Realm.Transaction.OnSuccess {
-            callback(getInsertedObj(id, objApi))
+            val objInserted = getInsertedObj(id, objApi)
+            mainRealm.close()
+            callback(objInserted)
         })
     }
 
     protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
+
+    /**
+     * Call this method inside a transaction.
+     * Insert or update list in same thread that this method was call.
+     * Don't call this method in the main thread
+     */
+    @WorkerThread
+    fun insertOrUpdateHashList(realm: Realm, apiList: Set<X>) {
+        apiList.forEach {
+            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
+        }
+    }
+
+    @WorkerThread
+    fun insertOrUpdate(realm: Realm, apiList: List<E>) {
+        apiList.forEach {
+            realm.insertOrUpdate(createRealmObj(it))
+        }
+    }
+
+    @WorkerThread
+    fun insertOrUpdateHashList(apiList: Set<X>) {
+        getRealm().executeTransaction { realm ->
+            apiList.forEach {
+                realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
+            }
+        }
+    }
+
+    @WorkerThread
+    fun insertOrUpdate(list: List<E>) {
+        getRealm().executeTransaction { realm ->
+            list.forEach {
+                realm.insertOrUpdate(createRealmObj(it))
+            }
+        }
+        resetRealm()
+    }
+
+    open fun update(e: E, callback: () -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            realm.insertOrUpdate(createRealmObj(e))
+            Log.d(tag, "$e updated")
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            callback()
+        })
+    }
+
+    @WorkerThread
+    open fun update(e: E) {
+        getRealm().executeTransaction({ realm ->
+            realm.insertOrUpdate(createRealmObj(e))
+            Log.d(tag, "$e updated")
+        })
+        resetRealm()
+    }
+
+    fun update(eList: List<E>, callback: () -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            eList.forEach {
+                realm.insertOrUpdate(createRealmObj(it))
+                Log.d(tag, "$it updated")
+            }
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            callback()
+        })
+    }
+
+    @WorkerThread
+    fun update(eList: List<E>) {
+        getRealm().executeTransaction({ realm ->
+            eList.forEach {
+                realm.insertOrUpdate(createRealmObj(it))
+                Log.d(tag, "$it updated")
+            }
+        })
+        resetRealm()
+    }
+
+    @WorkerThread
+    fun update(eList: Set<E>) {
+        getRealm().executeTransaction({ realm ->
+            eList.forEach {
+                realm.insertOrUpdate(createRealmObj(it))
+                Log.d(tag, "$it updated")
+            }
+        })
+        resetRealm()
+    }
+
+    open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            realm.insertOrUpdate(createRealmObj(e))
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            callback(e)
+        })
+    }
+
+    @WorkerThread
+    open fun insertOrUpdate(e: E) {
+        getRealm().executeTransaction({ realm ->
+            realm.insertOrUpdate(createRealmObj(e))
+        })
+        resetRealm()
+    }
+
+    fun insertOrUpdateNoCallback(t: T, callback: (e: E) -> Unit) {
+
+        val handlerThread = HandlerThread("MyHandlerThread")
+        handlerThread.start()
+        val looper = handlerThread.looper
+        val handler = Handler(looper)
+        handler.post({
+
+            getRealm().executeTransactionAsync(Realm.Transaction { realm ->
+                realm.insertOrUpdate(t)
+            }, Realm.Transaction.OnSuccess {
+                callback(createObj(t))
+            })
+
+        })
+    }
 
     class Builder<T : RealmModel>(internal val realmClass: Class<T>) {
         internal var excludeFieldName: String? = null

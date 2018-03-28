@@ -10,6 +10,7 @@ import io.realm.Realm
 abstract class Repository {
 
     private var mRealm: Realm?
+    private var mResetRealmManually = false
 
     constructor() {
         mRealm = Realm.getDefaultInstance()
@@ -34,7 +35,13 @@ abstract class Repository {
     }
 
     fun resetRealm() {
+        if(mResetRealmManually) return
+        Log.d("Repository", "${this.javaClass.simpleName} resetRealm()")
         mRealm?.close()
         mRealm = null
+    }
+
+    fun resetRealmOnlyManually(resetManually: Boolean) {
+        mResetRealmManually = resetManually
     }
 }
