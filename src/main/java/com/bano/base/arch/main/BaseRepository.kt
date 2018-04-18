@@ -270,7 +270,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         }
     }
 
-
     protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
         val mainRealm = getRealm()
         mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
