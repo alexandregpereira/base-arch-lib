@@ -58,6 +58,7 @@ open class BaseResponse<K> {
         const val HTTP_SERVICE_UNAVAILABLE = 503
         private const val HTTP_AUTH_ERROR = 408
         const val HTTP_NOT_FOUND = 404
+        const val HTTP_BAD_REQUEST = 400
 
         fun isError(responseCode: Int): Boolean = responseCode == HTTP_NOT_AUTHORIZED
                 || responseCode == HTTP_SESSION_EXPIRED
