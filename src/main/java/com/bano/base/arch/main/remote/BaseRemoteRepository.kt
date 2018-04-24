@@ -67,7 +67,7 @@ abstract class BaseRemoteRepository<E, T, X : Any, V> : BaseRepository<E, T, X> 
 
     protected fun getRemoteList(offset: Int, callback: (baseResponse: BaseResponse<List<E>>) -> Unit,
                                 consumeApi: (api: V, offset: Int, (BaseResponse<List<X>>) -> Unit, (t: Throwable) -> Unit) -> Unit, storeApiData: (offset: Int, List<X>, (List<E>?) -> Unit) -> Unit) {
-        getRemote(offset, callback, consumeApi, storeApiData, { isInProgress(it) }, {
+        getRemote(offset, callback, consumeApi, storeApiData, { isInProgress(offset) }, {
             val set = if(someRequestInProgress(it.offset)) {
                 Log.d(tag, getTagLog() + ": someRequestInProgress(): $offset")
                 false
@@ -87,16 +87,16 @@ abstract class BaseRemoteRepository<E, T, X : Any, V> : BaseRepository<E, T, X> 
 
     protected fun getRemoteObj(callback: (baseResponse: BaseResponse<E>) -> Unit,
                                consumeApi: (api: V, offset: Int, (BaseResponse<X>) -> Unit, (t: Throwable) -> Unit) -> Unit, storeApiData: (offset: Int, X, (E?) -> Unit) -> Unit) {
-        getRemote(offset, callback, consumeApi, storeApiData, { mRequestObjPoolItemInProgress }, { setObjInProgress() })
+        getRemote(-1, callback, consumeApi, storeApiData, { mRequestObjPoolItemInProgress }, { setObjInProgress() })
     }
 
     private fun <K, N> getRemote(offset: Int,
                                    callback: (baseResponse: BaseResponse<N>) -> Unit,
                                    consumeApi: (api: V, offset: Int, (BaseResponse<K>) -> Unit, (t: Throwable) -> Unit) -> Unit,
                                    storeApiData: (offset: Int, K, (N?) -> Unit) -> Unit,
-                                   isInProgress: (offset: Int) -> Boolean,
+                                   isInProgress: () -> Boolean,
                                    setInProgress: (requestPoolItem: RequestPoolItem<V, K, N>) -> Boolean) {
-        if(isInProgress(offset)) {
+        if(isInProgress()) {
             Log.d(tag, getTagLog() + ": isInProgress(): $offset")
             return
         }
