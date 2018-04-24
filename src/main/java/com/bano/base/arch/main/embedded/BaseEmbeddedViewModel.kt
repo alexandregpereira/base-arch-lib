@@ -23,12 +23,16 @@ abstract class BaseEmbeddedViewModel<E, T, X : Any, F> :
     abstract fun getEmbeddedRepository(embeddedRepositoryList: List<BaseRepository<*, *, *>>): BaseRepository<F, *, *>
 
     open fun load(id: Long) {
+        loadLocal(id)
+        loadRemote(id)
+    }
+
+    fun loadLocal(id: Long) {
         val repository = getRepository() as? BaseEmbeddedListRemoteRepository<E, T, X, *> ?:  throw IllegalAccessException("repository must be BaseEmbeddedListRepository")
         val embeddedRepositoryList = repository.getEmbeddedRepositoryList(repository.getRealm(), id)
         val embeddedLocalList: List<F> = getEmbeddedRepository(embeddedRepositoryList).getLocalList()
         holderMapLiveData.value = HolderMapResponse(repository.getLocalObj(id), embeddedLocalList, false)
         embeddedListLiveData.value = BaseResponse(embeddedLocalList)
-        loadRemote(id)
     }
 
     fun loadRemote(id: Long) {
@@ -56,7 +60,7 @@ abstract class BaseEmbeddedViewModel<E, T, X : Any, F> :
         loadRemote(id)
     }
 
-    fun loadEmbeddedObjLocal(id: Long) {
+    fun loadEmbeddedObjLocal(id: Any) {
         val repository = getRepository() as? BaseEmbeddedListRemoteRepository<E, T, X, *> ?:  throw IllegalAccessException("repository must be BaseEmbeddedListRepository")
         val embeddedRepositoryList = repository.createEmbeddedRepositoryList(repository.getRealm(), null)
         embeddedObjLiveData.value = BaseResponse(getEmbeddedRepository(embeddedRepositoryList).getLocalObj(id))
