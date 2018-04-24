@@ -78,7 +78,7 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
         }
     }
 
-    fun loadObjRemote(id: Long) {
+    open fun loadObjRemote(id: Long) {
         val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
         loadingLiveData.value = true
         repository.getRemoteObj(id) { baseResponse ->
