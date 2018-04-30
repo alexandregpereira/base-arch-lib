@@ -21,13 +21,15 @@ abstract class BaseConfigRepository<T, V>(private val clazz: Class<V>) : Reposit
     protected var inProgress = false
     private var mApiRequestModel: BaseApiRequestModel? = null
 
-    abstract protected fun getFromApi(api: V, onResponse: (response: Int, T?) -> Unit, onFailure: (t: Throwable) -> Unit)
-    abstract protected fun getRealmQueryTable(realm: Realm): RealmQuery<T>
-    abstract protected fun createAPIRequestModel(): BaseApiRequestModel
+    protected abstract fun getFromApi(api: V, onResponse: (response: Int, T?) -> Unit, onFailure: (t: Throwable) -> Unit)
+    protected abstract fun getRealmQueryTable(realm: Realm): RealmQuery<T>
+    protected abstract fun createAPIRequestModel(): BaseApiRequestModel
 
     fun getLocal(): T? {
         val realmObj = getDatabaseLocal() ?: return null
-        return createObj(realmObj)
+        val configObj = createObj(realmObj)
+        resetRealm()
+        return configObj
     }
 
     protected fun getLocal(realm: Realm): T? {
@@ -76,6 +78,7 @@ abstract class BaseConfigRepository<T, V>(private val clazz: Class<V>) : Reposit
         getRealm().executeTransactionAsync( Realm.Transaction { realm ->
             realm.insertOrUpdate(createRealmObj(t))
         }, Realm.Transaction.OnSuccess {
+            resetRealm()
             callback()
         })
     }
