@@ -9,12 +9,10 @@ import io.realm.Realm
  */
 abstract class Repository {
 
-    private var mRealm: Realm?
+    private var mRealm: Realm? = null
     private var mResetRealmManually = false
 
-    constructor() {
-        mRealm = Realm.getDefaultInstance()
-    }
+    constructor()
 
     constructor(realm: Realm) {
         mRealm = realm
