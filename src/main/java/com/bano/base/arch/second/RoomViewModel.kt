@@ -1,4 +1,4 @@
-package com.bano.base.arch.main
+package com.bano.base.arch.second
 
 import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
@@ -6,31 +6,23 @@ import android.arch.lifecycle.ViewModel
 import android.arch.paging.PagedList
 import com.bano.base.BaseResponse
 import com.bano.base.contract.BaseViewModelContract
-import io.realm.RealmModel
 
-/**
- * Created by bk_alexandre.pereira on 18/09/2017.
- *
- */
-abstract class BaseViewModel<E, T, X : Any> :
-        ViewModel(), BaseViewModelContract<E> where T : RealmModel {
-
-    override val listOnlyLiveData: LiveData<PagedList<E>?>
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-
-    override val objOnlyLiveData: MutableLiveData<E>
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
+abstract class RoomViewModel<E> : ViewModel(), BaseViewModelContract<E> {
 
     var idParent: Long? = null
     override var total: Int? = null
-    private var mRepository: BaseRepository<E, T, X>? = null
+    private var mRepository: RoomRepository<E>? = null
 
+    override val listOnlyLiveData: LiveData<PagedList<E>?> by lazy {
+        getRepository().getLocalList()
+    }
+    override val objOnlyLiveData = MutableLiveData<E>()
     override val listLiveData = MutableLiveData<BaseResponse<List<E>>>()
     override val objLiveData = MutableLiveData<BaseResponse<E>>()
 
-    protected abstract fun createRepository(idParent: Long?): BaseRepository<E, T, X>
+    protected abstract fun createRepository(idParent: Long?): RoomRepository<E>
 
-    protected fun getRepository(): BaseRepository<E, T, X> {
+    protected fun getRepository(): RoomRepository<E> {
         val repository =
                 if(mRepository?.idParent != idParent) {
                     createRepository(idParent)
@@ -50,11 +42,13 @@ abstract class BaseViewModel<E, T, X : Any> :
     }
 
     override fun loadLocal() {
-        listLiveData.value = BaseResponse(getRepository().getLocalList())
+
     }
 
     override fun loadObjLocal(id: Any) {
-        objLiveData.value = BaseResponse(getRepository().getLocalObj(id))
+        getRepository().getLocalObj(id).subscribe {
+            objOnlyLiveData.postValue(it)
+        }
     }
 
     override fun loadNextPage(){
@@ -69,14 +63,14 @@ abstract class BaseViewModel<E, T, X : Any> :
 
     override fun update(obj: E): LiveData<E> {
         val objLiveDataTmp = MutableLiveData<E>()
-        getRepository().update(obj) {
-            objLiveDataTmp.value = obj
-            objLiveData.value = BaseResponse(obj)
-        }
+//        getRepository().update(obj) {
+//            objLiveDataTmp.value = obj
+//            objLiveData.value = BaseResponse(obj)
+//        }
         return objLiveDataTmp
     }
 
     override fun updateInAsync(objList: List<E>) {
-        getRepository().update(objList) {  }
+//        getRepository().update(objList) {  }
     }
 }

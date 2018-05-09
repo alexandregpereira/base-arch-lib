@@ -1,17 +1,12 @@
-package com.bano.base.arch.main.remote
+package com.bano.base.arch.second.remote
 
 import android.arch.lifecycle.MutableLiveData
 import com.bano.base.BaseResponse
-import com.bano.base.arch.main.BaseViewModel
+import com.bano.base.arch.second.RoomViewModel
 import com.bano.base.contract.BaseRemoteViewModelContract
-import io.realm.RealmModel
 
-/**
- * Created by bk_alexandre.pereira on 18/09/2017.
- *
- */
-abstract class BaseRemoteViewModel<E, T, X : Any> :
-        BaseViewModel<E, T, X>(), BaseRemoteViewModelContract where T : RealmModel {
+@Suppress("UNCHECKED_CAST")
+abstract class RoomRemoteViewModel<E, X: Any> : RoomViewModel<E>(), BaseRemoteViewModelContract {
 
     override val responseCodeLiveData = MutableLiveData<Int>()
     override val logoutLiveData = MutableLiveData<Boolean>()
@@ -29,34 +24,31 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
     }
 
     override fun reload(): Int {
-        val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+        val repository = getRepository() as? RoomRemoteRepository<*, *, *>
+                ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
         repository.clearData()
         loadRemote()
         return repository.limit
     }
 
     override fun reloadObj(id: Long): Int {
-        val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+        val repository = getRepository() as? RoomRemoteRepository<*, *, *>
+                ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
         repository.clearObjData()
         loadObjRemote(id)
         return repository.limit
     }
 
-    override open fun loadRemote() {
-        loadRemote(null)
-    }
-
-    protected fun loadRemote(callback: (() -> Unit)?) {
-        loadRemote<List<E>>({ onResponse ->
-            val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+    override fun loadRemote() {
+        loadRemote<List<E>> { onResponse ->
+            val repository = getRepository() as? RoomRemoteRepository<E, X, *>
+                    ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
             repository.getRemoteList(onResponse)
-        }, { baseResponse ->
-            listLiveData.value = baseResponse
-            callback?.invoke()
-        })
+        }
     }
 
-    protected fun <N> loadRemote(getRemote: ((baseResponse: BaseResponse<N>) -> Unit) -> Unit, callback: (baseResponse: BaseResponse<N>) -> Unit) {
+
+    protected fun <N> loadRemote(getRemote: ((baseResponse: BaseResponse<N>) -> Unit) -> Unit) {
         val offset = getRepository().offset
         if(offset == 0) loadingLiveData.value = true
         else loadingPaginationLiveData.value = true
@@ -73,12 +65,12 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
             if(baseResponse.responseCode == BaseResponse.CACHE_MODE_CODE) {
                 return@getRemote
             }
-            callback(baseResponse)
         }
     }
 
     override fun loadObjRemote(id: Long) {
-        val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+        val repository = getRepository() as? RoomRemoteRepository<E, X, *>
+                ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
         loadingLiveData.value = true
         repository.getRemoteObj(id) { baseResponse ->
             loadingLiveData.value = false
