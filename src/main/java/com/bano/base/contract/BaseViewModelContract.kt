@@ -7,8 +7,6 @@ import com.bano.base.BaseResponse
 
 interface BaseViewModelContract<T> {
 
-    var total: Int?
-    val listOnlyLiveData: LiveData<PagedList<T>?>
     val objOnlyLiveData: MutableLiveData<T>
     val listLiveData: MutableLiveData<BaseResponse<List<T>>>
     val objLiveData: MutableLiveData<BaseResponse<T>>

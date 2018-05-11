@@ -3,7 +3,6 @@ package com.bano.base.arch.main
 import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.ViewModel
-import android.arch.paging.PagedList
 import com.bano.base.BaseResponse
 import com.bano.base.contract.BaseViewModelContract
 import io.realm.RealmModel
@@ -15,14 +14,11 @@ import io.realm.RealmModel
 abstract class BaseViewModel<E, T, X : Any> :
         ViewModel(), BaseViewModelContract<E> where T : RealmModel {
 
-    override val listOnlyLiveData: LiveData<PagedList<E>?>
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-
     override val objOnlyLiveData: MutableLiveData<E>
         get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
 
     var idParent: Long? = null
-    override var total: Int? = null
+    var total: Int? = null
     private var mRepository: BaseRepository<E, T, X>? = null
 
     override val listLiveData = MutableLiveData<BaseResponse<List<E>>>()

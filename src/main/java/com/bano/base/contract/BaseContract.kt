@@ -7,6 +7,7 @@ package com.bano.base.contract
  */
 interface BaseContract {
 
+    @Deprecated("Field not being used")
     var excludeDate: Long?
     var order: Int
 }

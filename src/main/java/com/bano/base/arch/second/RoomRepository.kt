@@ -1,18 +1,19 @@
 package com.bano.base.arch.second
 
 import android.arch.lifecycle.LiveData
-import android.arch.paging.PagedList
-import io.reactivex.Flowable
+import android.arch.lifecycle.MutableLiveData
+import java.util.concurrent.Executors
 
 abstract class RoomRepository<E> {
 
     private val tag = "BaseRepository"
+    private val ioExecutor = Executors.newSingleThreadExecutor()
 
     val idParent: Long?
     val limit: Int
     var offset: Int = 0
         private set
-    var total: Int? = null
+    val totalLiveData = MutableLiveData<Int>()
     private val mExcludeFieldName: String?
     private val mOrderFieldName: String?
 
@@ -31,8 +32,10 @@ abstract class RoomRepository<E> {
         offset = 0
     }
 
-    abstract fun getLocalList(): LiveData<PagedList<E>?>
-    abstract fun getLocalObj(id: Any): Flowable<E?>
+    abstract fun getLocalObj(id: Any): E?
+    abstract fun update(e: E)
+    abstract fun insertOrUpdate(objToSaveList: List<E>)
+    abstract fun insertOrUpdate(objToSave: E)
 
     protected open fun getTagLog(): String = "BaseRepository"
 
@@ -40,7 +43,7 @@ abstract class RoomRepository<E> {
      * Call this function to set the next page only. Do the query after this method
      */
     open fun nextPage() {
-        val total = total
+        val total = totalLiveData.value
         if(total != null && offset + limit > total) {
             return
         }
@@ -49,6 +52,24 @@ abstract class RoomRepository<E> {
 
     fun resetPage() {
         offset = 0
+    }
+
+    open fun update(e: E, callback: () -> Unit) {
+        ioExecutor.execute {
+            update(e)
+        }
+    }
+
+    open fun update(e: List<E>, callback: () -> Unit) {
+        ioExecutor.execute {
+            insertOrUpdate(e)
+        }
+    }
+
+    open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
+        ioExecutor.execute {
+            insertOrUpdate(e)
+        }
     }
 
     class Builder<T> {
