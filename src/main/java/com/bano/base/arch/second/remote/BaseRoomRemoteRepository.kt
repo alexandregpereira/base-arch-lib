@@ -24,7 +24,7 @@ abstract class BaseRoomRemoteRepository<E, X : Any> : RoomRepository<E> {
 
     constructor(builder: RoomRepository.Builder<E>): super(builder)
 
-    abstract fun getLocalList(offset: Int, limit: Int): List<E>
+    abstract fun getLocalList(apiList: List<X>): List<E>
     abstract fun delete(e: E)
     abstract fun getRoomDataBase(): RoomDatabase
 
@@ -68,7 +68,7 @@ abstract class BaseRoomRemoteRepository<E, X : Any> : RoomRepository<E> {
 
     @WorkerThread
     fun insertApiList(offset: Int, apiList: List<X>): List<E> {
-        val localList = getLocalList(offset, limit)
+        val localList = getLocalList(apiList)
         val apiListFiltered = apiList.filter { it != null }
 
         handleDeletedDataFromApi(localList, apiListFiltered)
@@ -85,16 +85,22 @@ abstract class BaseRoomRemoteRepository<E, X : Any> : RoomRepository<E> {
                     setFieldsFromApi(objLocal, objLocalUpdated)
                     objLocalUpdated
                 }
-                if(objToUpdate is BaseContract) objToUpdate.order = order++
+                setOrder(objToUpdate, order++)
                 objToUpdate
             } else {
                 val objToInsert = createObjFromObjApi(apiObj)
-                if(objToInsert is BaseContract) objToInsert.order = order++
+                setOrder(objToInsert, order++)
                 objToInsert
             }
         }
         insertOrUpdateListFromApi(apiList, objToSaveList)
         return objToSaveList
+    }
+
+    open fun setOrder(obj: E, order: Int) {
+        if(obj is BaseContract) {
+            obj.order = order
+        }
     }
 
     open fun insertOrUpdateListFromApi(apiList: List<X>, objToSaveList: List<E>) {
