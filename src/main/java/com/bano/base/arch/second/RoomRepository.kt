@@ -1,6 +1,5 @@
 package com.bano.base.arch.second
 
-import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import java.util.concurrent.Executors
 

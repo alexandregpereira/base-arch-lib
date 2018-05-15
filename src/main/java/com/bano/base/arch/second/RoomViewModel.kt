@@ -14,7 +14,6 @@ abstract class RoomViewModel<E> : ViewModel(), BaseViewModelContract<E> {
 
     val totalLiveData = getRepository().totalLiveData
 
-    override val objOnlyLiveData = MutableLiveData<E>()
     override val listLiveData = MutableLiveData<BaseResponse<List<E>>>()
     override val objLiveData = MutableLiveData<BaseResponse<E>>()
 
@@ -34,22 +33,8 @@ abstract class RoomViewModel<E> : ViewModel(), BaseViewModelContract<E> {
         loadObjLocal(id)
     }
 
-    override fun load() {
-        loadLocal()
-    }
-
-    override fun loadLocal() {
-
-    }
-
     override fun loadObjLocal(id: Any) {
 
-    }
-
-    override fun loadNextPage(){
-        val repository = getRepository()
-        repository.nextPage()
-        load()
     }
 
     override fun resetPage() {

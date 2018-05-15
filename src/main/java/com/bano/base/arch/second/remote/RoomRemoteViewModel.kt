@@ -18,8 +18,9 @@ abstract class RoomRemoteViewModel<E, X: Any> : RoomViewModel<E>(), BaseRemoteVi
         loadObjRemote(id)
     }
 
-    override fun load() {
-        loadLocal()
+    override fun loadNextPage(){
+        val repository = getRepository()
+        repository.nextPage()
         loadRemote()
     }
 

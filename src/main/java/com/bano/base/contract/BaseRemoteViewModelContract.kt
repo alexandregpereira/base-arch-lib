@@ -11,10 +11,6 @@ interface BaseRemoteViewModelContract {
 
     fun logout(callback: () -> Unit)
 
-    fun loadObj(id: Long)
-
-    fun load()
-
     fun reload(): Int
 
     fun reloadObj(id: Long): Int
@@ -22,4 +18,6 @@ interface BaseRemoteViewModelContract {
     fun loadRemote()
 
     fun loadObjRemote(id: Long)
+
+    fun loadNextPage()
 }

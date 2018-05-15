@@ -14,9 +14,6 @@ import io.realm.RealmModel
 abstract class BaseViewModel<E, T, X : Any> :
         ViewModel(), BaseViewModelContract<E> where T : RealmModel {
 
-    override val objOnlyLiveData: MutableLiveData<E>
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-
     var idParent: Long? = null
     var total: Int? = null
     private var mRepository: BaseRepository<E, T, X>? = null
@@ -41,11 +38,11 @@ abstract class BaseViewModel<E, T, X : Any> :
         loadObjLocal(id)
     }
 
-    override fun load() {
+    open fun load() {
         loadLocal()
     }
 
-    override fun loadLocal() {
+    fun loadLocal() {
         listLiveData.value = BaseResponse(getRepository().getLocalList())
     }
 
@@ -53,7 +50,7 @@ abstract class BaseViewModel<E, T, X : Any> :
         objLiveData.value = BaseResponse(getRepository().getLocalObj(id))
     }
 
-    override fun loadNextPage(){
+    fun loadNextPage(){
         val repository = getRepository()
         repository.nextPage()
         load()
