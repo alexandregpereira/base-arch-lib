@@ -42,7 +42,7 @@ abstract class BaseRemoteRepository<E, T, X : Any, V> : BaseRepository<E, T, X> 
     }
 
     protected abstract fun getApiList(api: V, offset: Int, limit: Int, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
-    protected abstract fun getObjApi(api: V, id: Long, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)
+    protected abstract fun getObjApi(api: V, id: Any, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)
     protected abstract fun createAPIRequestModel(): ApiRequestModel<*>
 
     open fun getRemoteList(callback: (baseResponse: BaseResponse<List<E>>) -> Unit){
@@ -55,7 +55,7 @@ abstract class BaseRemoteRepository<E, T, X : Any, V> : BaseRepository<E, T, X> 
         })
     }
 
-    open fun getRemoteObj(id: Long, callback: (baseResponse: BaseResponse<E>) -> Unit) {
+    open fun getRemoteObj(id: Any, callback: (baseResponse: BaseResponse<E>) -> Unit) {
         getRemoteObj(callback, { api, _, onResponse, onFailure ->
             getObjApi(api, id, onResponse, onFailure)
         }, { _, objApi, onStored ->

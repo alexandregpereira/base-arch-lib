@@ -33,7 +33,7 @@ abstract class BaseEmbeddedListRemoteRepository<E, T, X : Any, V> : BaseRemoteRe
         }
     }
 
-    override fun getRemoteObj(id: Long, callback: (baseResponse: BaseResponse<E>) -> Unit) {
+    override fun getRemoteObj(id: Any, callback: (baseResponse: BaseResponse<E>) -> Unit) {
         super.getRemoteObj(id) { responseCode ->
             callback(responseCode)
             val embeddedRepositoryList = createEmbeddedRepositoryList(getRealm(), null)

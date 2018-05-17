@@ -33,7 +33,7 @@ abstract class BaseViewModel<E, T, X : Any> :
         return repository
     }
 
-    open fun loadObj(id: Long) {
+    open fun loadObj(id: Any) {
         loadObjLocal(id)
     }
 

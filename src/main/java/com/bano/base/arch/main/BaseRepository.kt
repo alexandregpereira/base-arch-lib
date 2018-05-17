@@ -206,7 +206,7 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     protected open fun onBeforeInsertData(realm: Realm, apiObj: X) = Unit
-    protected open fun onBeforeInsertData(realm: Realm, id: Long, apiObj: X) = Unit
+    protected open fun onBeforeInsertData(realm: Realm, id: Any, apiObj: X) = Unit
 
     /**
      * This method is accessed when exists an obj local.
@@ -299,7 +299,7 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         }
     }
 
-    protected fun insertOrUpdateFromObjApi(id: Long, objApi: X, callback: (E?) -> Unit) {
+    protected fun insertOrUpdateFromObjApi(id: Any, objApi: X, callback: (E?) -> Unit) {
         val mainRealm = getRealm()
         mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             onBeforeInsertData(realm, id, objApi)
@@ -339,7 +339,7 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         })
     }
 
-    protected open fun getInsertedObj(id: Long, objApi: X, callback: (E?) -> Unit) = getLocalObj(id, callback)
+    protected open fun getInsertedObj(id: Any, objApi: X, callback: (E?) -> Unit) = getLocalObj(id, callback)
 
     /**
      * Call this method inside a transaction.

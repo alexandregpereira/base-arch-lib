@@ -64,7 +64,7 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteRepository<E, T,
         }
     }
 
-    override fun getRemoteObj(id: Long, callback: (baseResponse: BaseResponse<E>) -> Unit) {
+    override fun getRemoteObj(id: Any, callback: (baseResponse: BaseResponse<E>) -> Unit) {
         super.getRemoteObj(id) { responseCode ->
             callback(responseCode)
             checkPendentSync()

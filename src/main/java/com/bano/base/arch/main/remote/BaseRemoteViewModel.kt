@@ -19,7 +19,7 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
 
     abstract fun logout(callback: () -> Unit)
 
-    override fun loadObj(id: Long) {
+    override fun loadObj(id: Any) {
         super.loadObj(id)
         loadObjRemote(id)
     }
@@ -36,7 +36,7 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
         return repository.limit
     }
 
-    fun reloadObj(id: Long): Int {
+    fun reloadObj(id: Any): Int {
         val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
         repository.clearObjData()
         loadObjRemote(id)
@@ -78,7 +78,7 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
         }
     }
 
-    open fun loadObjRemote(id: Long) {
+    open fun loadObjRemote(id: Any) {
         val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
         loadingLiveData.value = true
         repository.getRemoteObj(id) { baseResponse ->
