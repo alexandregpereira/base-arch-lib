@@ -9,6 +9,7 @@ import com.bano.base.arch.Repository
 import com.bano.base.contract.BaseContract
 import com.bano.base.contract.MapperContract
 import com.bano.base.contract.toArrayList
+import com.bano.base.util.RepositoryUtil
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -105,6 +106,22 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         return e
     }
 
+    fun getLocalObj(id: Any, callback: (E?) -> Unit) {
+        RepositoryUtil.executeInAsyncHandlerThread(execute = {
+            val realm = Realm.getDefaultInstance()
+            getLocalObj(realm, id)
+        }, callback = callback)
+    }
+
+    protected open fun getLocalObj(realm: Realm, id: Any): E? {
+        return when(id) {
+            is Long -> getLocalObj(getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, id))
+            is String -> getLocalObj(getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, id))
+            is Int -> getLocalObj(getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, id))
+            else -> throw IllegalArgumentException("$id is not supported")
+        }
+    }
+
     fun getLocalObj(realmQuery: RealmQuery<T>): E? {
         val realmModel = realmQuery.findFirst() ?: return null
         return createObj(realmModel)
@@ -117,19 +134,11 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     fun getLocalList(callback: (List<E>) -> Unit) {
-        val handlerThread = HandlerThread("loadLocal")
-        handlerThread.start()
-        val mainHandler = Handler()
         val offset = offset
-        Handler(handlerThread.looper).post {
+        RepositoryUtil.executeInAsyncHandlerThread(execute = {
             val realm = Realm.getDefaultInstance()
-            val list = getLocalList(realm, offset)
-            realm.close()
-            mainHandler.post {
-                handlerThread.quit()
-                callback(list)
-            }
-        }
+            getLocalList(realm, offset)
+        }, callback = callback)
     }
 
     protected open fun getLocalList(realm: Realm, offset: Int): List<E> {
@@ -327,13 +336,12 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
             }
             realm.insertOrUpdate(createRealmObj(objToUpdate))
         }, Realm.Transaction.OnSuccess {
-            val objInserted = getInsertedObj(id, objApi)
             mainRealm.close()
-            callback(objInserted)
+            getInsertedObj(id, objApi, callback)
         })
     }
 
-    protected open fun getInsertedObj(id: Long, objApi: X): E? = getLocalObj(id)
+    protected open fun getInsertedObj(id: Long, objApi: X, callback: (E?) -> Unit) = getLocalObj(id, callback)
 
     /**
      * Call this method inside a transaction.
