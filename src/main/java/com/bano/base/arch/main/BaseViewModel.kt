@@ -42,7 +42,9 @@ abstract class BaseViewModel<E, T, X : Any> :
     }
 
     open fun loadLocal() {
-        listLiveData.value = BaseResponse(getRepository().getLocalList())
+        getRepository().getLocalList {
+            listLiveData.value = BaseResponse(it)
+        }
     }
 
     open fun loadObjLocal(id: Any) {

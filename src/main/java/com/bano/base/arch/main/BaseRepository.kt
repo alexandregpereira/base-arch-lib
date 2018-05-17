@@ -8,6 +8,7 @@ import com.bano.base.annotation.IdParent
 import com.bano.base.arch.Repository
 import com.bano.base.contract.BaseContract
 import com.bano.base.contract.MapperContract
+import com.bano.base.contract.toArrayList
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -113,6 +114,26 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         val idParentFieldName = getIdParentFieldName()
         return if (idParent == null || idParentFieldName == null) getRealmQueryTable(getRealm())
         else getRealmQueryTable(getRealm()).equalTo(idParentFieldName, idParent)
+    }
+
+    fun getLocalList(callback: (List<E>) -> Unit) {
+        val handlerThread = HandlerThread("loadLocal")
+        handlerThread.start()
+        val mainHandler = Handler()
+        val offset = offset
+        Handler(handlerThread.looper).post {
+            val realm = Realm.getDefaultInstance()
+            val list = getLocalList(realm, offset)
+            realm.close()
+            mainHandler.post {
+                handlerThread.quit()
+                callback(list)
+            }
+        }
+    }
+
+    protected open fun getLocalList(realm: Realm, offset: Int): List<E> {
+        return getQueryByOrder(offset, getRealmQueryTable(realm)).toArrayList { createObj(it) }
     }
 
     fun getLocalList(): List<E> {
@@ -236,9 +257,10 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
             insertOrUpdateList(offset, realm, apiList)
         }, Realm.Transaction.OnSuccess {
-            val localList = getLocalList()
             mainRealm.close()
-            callback(localList)
+            getLocalList {
+                callback(it)
+            }
         })
     }
 
