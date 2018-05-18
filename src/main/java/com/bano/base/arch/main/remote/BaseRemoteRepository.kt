@@ -1,247 +1,192 @@
 package com.bano.base.arch.main.remote
 
+import android.support.annotation.WorkerThread
 import android.util.Log
-import com.bano.base.BaseResponse
 import com.bano.base.arch.main.BaseRepository
-import com.bano.base.auth.OAuth2Service
-import com.bano.base.model.ApiRequestModel
+import com.bano.base.contract.*
 import io.realm.Realm
 import io.realm.RealmModel
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
-import java.util.*
-import kotlin.collections.HashSet
+import io.realm.RealmQuery
+import io.realm.RealmResults
+import io.realm.annotations.PrimaryKey
+import io.realm.kotlin.deleteFromRealm
+import java.lang.reflect.Modifier
+
 
 /**
- * Created by bk_alexandre.pereira on 15/09/2017.
+ * Created by bk_alexandre.pereira on 25/07/2017.
  *
  */
-abstract class BaseRemoteRepository<E, T, X : Any, V> : BaseRepository<E, T, X> where T : RealmModel {
-    private val tag = "BaseRepository"
-    private var remoteObj: E? = null
-    private val clazz: Class<V>
-    private var mApiRequestModel: ApiRequestModel<*>? = null
-    private val mRequestsPool = TreeSet<RequestPoolItem<V, List<X>, List<E>>>()
-    private var mRequestObjPoolItemInProgress = false
-    private val mCachePool = HashSet<Int>()
+abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>, MapperContract<E, T, X> where T : RealmModel  {
+    private val tag = "BaseRemoteRepository"
+    /**
+     * set this flag when is necessary to specify different scenarios in setFieldFromApi method
+     */
+    var resumeMode: Boolean = false
 
-    constructor(realmClass: Class<T>, clazz: Class<V>): super(realmClass) {
-        this.clazz = clazz
+    constructor(builder: Builder<T>): super(builder) {
+        resumeMode = builder.resumeMode
     }
 
-    constructor(clazz: Class<V>, builder: Builder<T>): super(builder) {
-        this.clazz = clazz
+    constructor(realm: Realm, builder: Builder<T>) : super(realm, builder) {
+        resumeMode = builder.resumeMode
     }
 
-    constructor(realm: Realm, clazz: Class<V>, builder: Builder<T>): super(realm, builder) {
-        this.clazz = clazz
+    constructor(clazz: Class<T>): super(clazz)
+
+    constructor(realm: Realm, clazz: Class<T>): super(realm, clazz)
+
+    protected open fun isSameObj(obj: E, apiObj: X): Boolean = obj == apiObj
+
+    protected open fun onBeforeInsertData(realm: Realm, apiObj: X) = Unit
+    protected open fun onBeforeInsertData(realm: Realm, id: Any, apiObj: X) = Unit
+
+    /**
+     * This method is accessed when exists an obj local.
+     * Must be implemented when the api obj fields is different from obj local
+     *
+     * @param oldObjLocal The obj local before the database update
+     * @param objUpdated The obj updated with the apiObj fields
+     */
+    protected open fun setFieldsFromApi(oldObjLocal: E, objUpdated: E) = Unit
+
+    /**
+     * This method is accessed when exists an obj local and resumeMode is enabled.
+     * Must be implemented when the api obj fields comes with less fields
+     *
+     * @param objLocal The obj local that must be updated
+     * @param apiObj The obj that comes from API with less fields
+     */
+    protected open fun setFieldsFromApiInResumeMode(objLocal: E, apiObj: X) = Unit
+
+    /**
+     * Check if some data was deleted comparing the localList with apiList.
+     * If in the apiList does not contains some data of localList, the local obj field excludeDate is updated
+     * @param apiList The list that comes from the API
+     */
+    protected open fun handleDeletedDataFromApi(realm: Realm, localList: List<E>, apiList: List<X>) {
+        localList.forEach { localObj ->
+            if(localObj !is BaseContract) return@forEach
+            val apiObj = apiList.find { isSameObj(localObj, it) }
+            if (apiObj == null) {
+                deleteFromApi(realm, localObj)
+                Log.d(tag, "$localObj deleted")
+            }
+        }
     }
 
-    constructor(realm: Realm, realmClass: Class<T>, clazz: Class<V>): super(realm, realmClass) {
-        this.clazz = clazz
+    protected open fun deleteFromApi(realm: Realm, localObj: E) {
+        realm.where(mRealmClass).queryById(mPrimaryKeyFieldName, localObj.getId()).findFirst()?.deleteFromRealm()
     }
 
-    protected abstract fun getApiList(api: V, offset: Int, limit: Int, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
-    protected abstract fun getObjApi(api: V, id: Any, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)
-    protected abstract fun createAPIRequestModel(): ApiRequestModel<*>
-
-    open fun getRemoteList(callback: (baseResponse: BaseResponse<List<E>>) -> Unit){
-        getRemoteList(offset, callback, { api, offset, onResponse, onFailure ->
-            getApiList(api, offset, limit, onResponse, onFailure)
-        }, { offset, apiList, onStored ->
-            insertOrUpdateList(offset, apiList) {
-                onStored(it)
+    fun insertOrUpdateFromApi(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            insertOrUpdateFromApi(offset, realm, apiList)
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            getLocalList {
+                callback(it)
             }
         })
     }
 
-    open fun getRemoteObj(id: Any, callback: (baseResponse: BaseResponse<E>) -> Unit) {
-        getRemoteObj(callback, { api, _, onResponse, onFailure ->
-            getObjApi(api, id, onResponse, onFailure)
-        }, { _, objApi, onStored ->
-            insertOrUpdateFromObjApi(id, objApi) {
-                onStored(it)
-            }
-        })
+    protected open fun getLocalListByApiResponse(offset: Int, realmQuery: RealmQuery<T>, apiList: List<X>): RealmResults<T> {
+        return getQueryByOrder(offset, realmQuery)
     }
 
-    protected fun getRemoteList(offset: Int, callback: (baseResponse: BaseResponse<List<E>>) -> Unit,
-                                consumeApi: (api: V, offset: Int, (BaseResponse<List<X>>) -> Unit, (t: Throwable) -> Unit) -> Unit, storeApiData: (offset: Int, List<X>, (List<E>?) -> Unit) -> Unit) {
-        getRemote(offset, callback, consumeApi, storeApiData, { isInProgress(offset) }, {
-            val set = if(someRequestInProgress(it.offset)) {
-                Log.d(tag, getTagLog() + ": someRequestInProgress(): $offset")
-                false
-            } else {
-                it.inProgress = true
-                true
-            }
-            mRequestsPool.remove(it)
-            addRequestToThePool(it)
-            if(!set) {
-                val requestInProgress = mRequestsPool.first()
-                getRemoteList(requestInProgress.offset, requestInProgress.callback, requestInProgress.consumeApi, requestInProgress.storeApiData)
-            }
-            set
-        })
-    }
-
-    protected fun getRemoteObj(callback: (baseResponse: BaseResponse<E>) -> Unit,
-                               consumeApi: (api: V, offset: Int, (BaseResponse<X>) -> Unit, (t: Throwable) -> Unit) -> Unit, storeApiData: (offset: Int, X, (E?) -> Unit) -> Unit) {
-        getRemote(-1, callback, consumeApi, storeApiData, { mRequestObjPoolItemInProgress }, { setObjInProgress() })
-    }
-
-    private fun <K, N> getRemote(offset: Int,
-                                   callback: (baseResponse: BaseResponse<N>) -> Unit,
-                                   consumeApi: (api: V, offset: Int, (BaseResponse<K>) -> Unit, (t: Throwable) -> Unit) -> Unit,
-                                   storeApiData: (offset: Int, K, (N?) -> Unit) -> Unit,
-                                   isInProgress: () -> Boolean,
-                                   setInProgress: (requestPoolItem: RequestPoolItem<V, K, N>) -> Boolean) {
-        if(isInProgress()) {
-            Log.d(tag, getTagLog() + ": isInProgress(): $offset")
-            return
-        }
-
-        val requestPoolItem = RequestPoolItem(offset, callback, consumeApi, storeApiData)
-        if(!isCached(offset)) {
-            if(!setInProgress(requestPoolItem)) return
-            Log.d(tag, getTagLog() + ": getRemote()")
-            getApiAndConsume(false, requestPoolItem)
-        }
-        else {
-            Log.d(tag, getTagLog() + ": isCached($offset)")
-            sendCallbackError(BaseResponse(BaseResponse.CACHE_MODE_CODE), requestPoolItem)
-        }
-    }
-
-    private fun someRequestInProgress(offset: Int): Boolean =
-            mRequestsPool.any { it.offset < offset }
-
-    private fun isInProgress(offset: Int): Boolean = mRequestsPool.any { it.offset == offset && it.inProgress }
-
-    private fun addRequestToThePool(requestPoolItem: RequestPoolItem<V, List<X>, List<E>>) {
-        Log.d(tag, getTagLog() + ": addRequestToThePool(${requestPoolItem.offset}) - size = ${mRequestsPool.size}")
-        mRequestsPool.add(requestPoolItem)
-    }
-
-    private fun setObjInProgress(): Boolean {
-        mRequestObjPoolItemInProgress = true
-        return mRequestObjPoolItemInProgress
-    }
-
-    private fun removeRequestToThePool(requestPoolItemToRemove: RequestPoolItem<*, *, *>) {
-        Log.d(tag, getTagLog() + ": removeRequestToThePool(${requestPoolItemToRemove.offset}) - size = ${mRequestsPool.size}")
-        mRequestsPool.remove(requestPoolItemToRemove)
-        if(mRequestsPool.isEmpty()) return
-        val requestPoolItem = mRequestsPool.first()
-        getRemoteList(requestPoolItem.offset, requestPoolItem.callback, requestPoolItem.consumeApi, requestPoolItem.storeApiData)
-    }
-
-    private fun setCached(offset: Int) {
-        mCachePool.add(offset)
-    }
-
-    private fun clearCache() {
-        mCachePool.clear()
-        mRequestsPool.clear()
-    }
-
-    private fun isCached(offset: Int): Boolean =
-            mCachePool.any { it == offset }
-
-    private fun <K, N> getApiAndConsume(newTentative: Boolean,
-                                        requestPoolItem: RequestPoolItem<V, K, N>) {
-        val api = getApi()
-        requestPoolItem.consumeApi(api, requestPoolItem.offset, { response ->
-            if(!response.isSuccessful()) {
-                if(BaseResponse.isErrorToChangeNavigation(response.responseCode) && !newTentative) {
-                    mApiRequestModel?.refreshToken { responseCode ->
-                        when (responseCode) {
-                            BaseResponse.HTTP_SUCCESS -> {
-                                Log.d("TokenRefresh", "${getTagLog()}: Token refreshed, trying again")
-                                //Try again
-                                getApiAndConsume(true, requestPoolItem)
-                            }
-                            BaseResponse.UNKNOWN_ERROR -> {
-                                Log.e("TokenRefresh", "${getTagLog()}: Token refresh failed")
-                                sendCallbackError(BaseResponse(BaseResponse.TOKEN_ERROR), requestPoolItem)
-                            }
-                            else -> {
-                                Log.e("TokenRefresh", "${getTagLog()}: Token refresh failed")
-                                sendCallbackError(BaseResponse(responseCode), requestPoolItem)
-                            }
-                        }
-                    }
-                    return@consumeApi
+    fun insertOrUpdateFromApi(offset: Int, realm: Realm, apiList: List<X>) {
+        val localList = map(getLocalListByApiResponse(offset, getRealmQueryTable(realm), apiList))
+        val apiListFiltered = apiList.filter { it != null }
+        handleDeletedDataFromApi(realm, localList, apiListFiltered)
+        Log.d(tag, getTagLog() + ": insertOrUpdateList()")
+        var order = offset
+        apiListFiltered.forEach { apiObj ->
+            onBeforeInsertData(realm, apiObj)
+            val objLocal = localList.find { isSameObj(it, apiObj) }
+            if (objLocal != null) {
+                val objToUpdate: E = if (resumeMode) {
+                    setFieldsFromApiInResumeMode(objLocal, apiObj)
+                    objLocal
+                } else {
+                    val objLocalUpdated = createObjFromObjApi(apiObj)
+                    setFieldsFromApi(objLocal, objLocalUpdated)
+                    objLocalUpdated
                 }
-                sendCallbackError(BaseResponse(response.responseCode), requestPoolItem)
-                return@consumeApi
+                setOrderFromApi(objToUpdate, order++)
+                realm.insertOrUpdate(createRealmObj(objToUpdate))
+            } else {
+                val objToInsert = createObjFromObjApi(apiObj)
+                setOrderFromApi(objToInsert, order++)
+                realm.insertOrUpdate(createRealmObj(objToInsert))
             }
-            val apiData = response.value
-            if(apiData == null) {
-                sendCallbackError(BaseResponse(BaseResponse.UNKNOWN_ERROR), requestPoolItem)
-                return@consumeApi
+        }
+    }
+
+    protected open fun <R> setOrderFromApi(objToSave: R, order: Int) {
+        if(objToSave is BaseContract) objToSave.order = order
+    }
+
+    protected fun insertOrUpdateFromObjApi(id: Any, objApi: X, callback: (E?) -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            onBeforeInsertData(realm, id, objApi)
+            val idField = objApi::javaClass.get().declaredFields.find { field ->
+                field.annotations.any { it is PrimaryKey }
             }
-            requestPoolItem.storeApiData(requestPoolItem.offset, apiData) {
-                setCached(requestPoolItem.offset)
-                val baseResponse = BaseResponse(response.responseCode, it, true)
-                baseResponse.payload = response.payload
-                requestPoolItem.callback(baseResponse)
-                removeRequestToThePool(requestPoolItem)
-                mRequestObjPoolItemInProgress = false
+
+            val objLocal = if(idField != null) {
+                val idFieldValue = if(Modifier.isPublic(idField.modifiers)) {
+                    idField.get(objApi)
+                }
+                else {
+                    val methods = objApi::javaClass.get().declaredMethods
+                    methods.find { it.name?.toLowerCase()?.contains("get${idField.name.toLowerCase()}") == true }?.invoke(objApi)
+                }
+
+                when (idFieldValue) {
+                    is Long -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    is String -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    is Int -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
+                    else -> null
+                }
+            } else {
+                Log.e(getTagLog(), "$objApi don't have PrimaryKey, the order will be missed")
+                null
             }
-        }, { throwable ->
-            Log.e(getTagLog(), throwable.message)
-            when (throwable) {
-                is UnknownHostException -> sendCallbackError(BaseResponse(BaseResponse.UNKNOWN_HOST), requestPoolItem)
-                is SocketTimeoutException -> sendCallbackError(BaseResponse(BaseResponse.TIMEOUT_ERROR), requestPoolItem)
-                else -> sendCallbackError(BaseResponse(BaseResponse.UNKNOWN_ERROR), requestPoolItem)
+
+            val objToUpdate = createObjFromObjApi(objApi)
+            if(objLocal != null) setFieldsFromApi(createObj(objLocal), objToUpdate)
+            if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
+                objToUpdate.order = objLocal.order
             }
+            realm.insertOrUpdate(createRealmObj(objToUpdate))
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            getInsertedObj(id, objApi, callback)
         })
     }
 
-    protected fun getApi(): V {
-        val requestModel = mApiRequestModel ?: createAPIRequestModel()
-        mApiRequestModel = requestModel
-        return OAuth2Service.buildRetrofitService(requestModel, clazz)
-    }
+    protected open fun getInsertedObj(id: Any, objApi: X, callback: (E?) -> Unit) = getLocalObj(id, callback)
 
-    private fun <K, N> sendCallbackError(baseResponse: BaseResponse<N>, requestPoolItem: RequestPoolItem<V, K, N>){
-        mRequestsPool.find { it.offset == requestPoolItem.offset }?.inProgress = false
-        mRequestObjPoolItemInProgress = false
-        requestPoolItem.callback(baseResponse)
-    }
-
-    fun clearData(){
-        if(isInProgress(offset)) return
-        resetPage()
-        clearCache()
-    }
-
-    fun clearObjData() {
-        if(isInProgress(offset)) return
-        clearCache()
-    }
-
-    class RequestPoolItem<V, K, N>(val offset: Int,
-                                      val callback: (baseResponse: BaseResponse<N>) -> Unit,
-                                      val consumeApi: (api: V, offset: Int, onResponse: (BaseResponse<K>) -> Unit, onFailure: (t: Throwable) -> Unit) -> Unit,
-                                      val storeApiData: (offset: Int, K, (N?) -> Unit) -> Unit) : Comparable<RequestPoolItem<V, K, N>> {
-
-        var inProgress: Boolean = false
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as RequestPoolItem<*, *, *>
-
-            if (offset != other.offset) return false
-
-            return true
+    /**
+     * Call this method inside a transaction.
+     * Insert or update list in same thread that this method was call.
+     * Don't call this method in the main thread
+     */
+    @WorkerThread
+    fun insertOrUpdateHashList(realm: Realm, apiList: Set<X>) {
+        apiList.forEach {
+            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
         }
+    }
 
-        override fun hashCode(): Int = offset
-
-        override fun compareTo(other: RequestPoolItem<V, K, N>): Int = offset.compareTo(other.offset)
+    @WorkerThread
+    fun insertOrUpdateHashList(apiList: Set<X>) {
+        getRealm().executeTransaction { realm ->
+            apiList.forEach {
+                realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
+            }
+        }
     }
 }

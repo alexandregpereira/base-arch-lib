@@ -22,7 +22,7 @@ android {
         }
     }
     configurations.all {
-        resolutionStrategy.force 'com.android.support:design:26.1.0'
+        resolutionStrategy.force 'com.android.support:design:27.1.1'
     }
 }
 

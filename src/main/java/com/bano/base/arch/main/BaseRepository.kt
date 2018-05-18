@@ -6,8 +6,8 @@ import android.support.annotation.WorkerThread
 import android.util.Log
 import com.bano.base.annotation.IdParent
 import com.bano.base.arch.Repository
-import com.bano.base.contract.BaseContract
-import com.bano.base.contract.MapperContract
+import com.bano.base.contract.BaseObjMapperContract
+import com.bano.base.contract.queryById
 import com.bano.base.contract.toArrayList
 import com.bano.base.util.RepositoryUtil
 import io.realm.Realm
@@ -15,34 +15,27 @@ import io.realm.RealmModel
 import io.realm.RealmQuery
 import io.realm.RealmResults
 import io.realm.annotations.PrimaryKey
-import java.lang.reflect.Modifier
-import java.util.*
 
 
 /**
  * Created by bk_alexandre.pereira on 25/07/2017.
  *
  */
-abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, X> where T : RealmModel  {
+abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> where T : RealmModel  {
     private val tag = "BaseRepository"
     val idParent: Long?
-    /**
-     * set this flag when is necessary to specify different scenarios in setFieldFromApi method
-     */
-    var resumeMode: Boolean = false
+
     val limit: Int
     var offset: Int = 0
         private set
     var total: Int? = null
-    private val mExcludeFieldName: String?
     private val mOrderFieldName: String?
-    private val mPrimaryKeyFieldName: String
-    private val mRealmClass: Class<T>
+    protected val mPrimaryKeyFieldName: String
+    protected val mRealmClass: Class<T>
 
     constructor(clazz: Class<T>): super() {
         idParent = null
         limit = 0
-        mExcludeFieldName = null
         mOrderFieldName = null
         mRealmClass = clazz
         mPrimaryKeyFieldName = getPrimaryKeyFieldName(clazz)
@@ -51,8 +44,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     constructor(builder: Builder<T>): super() {
         idParent = builder.idParent
         limit = builder.limit
-        resumeMode = builder.resumeMode
-        mExcludeFieldName = builder.excludeFieldName
         mOrderFieldName = builder.orderFieldName
         offset = 0
         mRealmClass = builder.realmClass
@@ -62,8 +53,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     constructor(realm: Realm, builder: Builder<T>): super(realm) {
         idParent = builder.idParent
         limit = builder.limit
-        resumeMode = builder.resumeMode
-        mExcludeFieldName = builder.excludeFieldName
         mOrderFieldName = builder.orderFieldName
         offset = 0
         mRealmClass = builder.realmClass
@@ -74,7 +63,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         idParent = null
         limit = 0
         offset = 0
-        mExcludeFieldName = null
         mOrderFieldName = null
         mRealmClass = clazz
         mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
@@ -89,8 +77,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     protected open fun getIdParentFieldName(): String? = mRealmClass.declaredFields.find {
         it.annotations.any { it is IdParent }
     }?.name
-
-    protected open fun isSameObj(obj: E, apiObj: X): Boolean = obj == apiObj
 
     open fun getRealmQueryTable(realm: Realm): RealmQuery<T> = realm.where(mRealmClass)
 
@@ -113,13 +99,9 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     protected open fun getLocalObj(realm: Realm, id: Any): E? {
-        return when(id) {
-            is Long -> getLocalObj(getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, id))
-            is String -> getLocalObj(getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, id))
-            is Int -> getLocalObj(getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, id))
-            else -> throw IllegalArgumentException("$id is not supported")
-        }
+        return getLocalObj(getRealmQueryTable(realm).queryById(mPrimaryKeyFieldName, id))
     }
+
 
     fun getLocalObj(realmQuery: RealmQuery<T>): E? {
         val realmModel = realmQuery.findFirst() ?: return null
@@ -144,17 +126,17 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     }
 
     fun getLocalList(): List<E> {
-        val eList = map(getDatabaseList())
+        val eList = getDatabaseList().toArrayList(this)
         resetRealm()
         return eList
     }
     fun getLocalList(orderFieldName: String): List<E> {
-        val eList = map(getDatabaseList(orderFieldName))
+        val eList = getDatabaseList(orderFieldName).toArrayList(this)
         resetRealm()
         return eList
     }
     fun getLocalList(realmQuery: RealmQuery<T>): List<E> {
-        val eList = map(getDatabaseList(realmQuery))
+        val eList = getDatabaseList(realmQuery).toArrayList(this)
         resetRealm()
         return eList
     }
@@ -165,7 +147,7 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
     protected open fun getQueryByOrder(realmQuery: RealmQuery<T>): RealmResults<T> =
             getQueryByOrder(offset, realmQuery)
 
-    private fun getQueryByOrder(offset: Int, realmQuery: RealmQuery<T>): RealmResults<T> {
+    protected fun getQueryByOrder(offset: Int, realmQuery: RealmQuery<T>): RealmResults<T> {
         return getQueryByOrder(offset, mOrderFieldName, realmQuery)
     }
 
@@ -178,13 +160,10 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         if (idParent != null && idParentFieldName != null) realmQuery.equalTo(idParentFieldName, idParent)
 
         if(limit > 0 && orderFieldName != null)
-            realmQuery.between(orderFieldName, offset, (offset + limit) -1)
-
-        if(mExcludeFieldName != null)
-            realmQuery.isNull(mExcludeFieldName)
+            realmQuery.between(orderFieldName, offset, (offset + limit) - 1)
 
         if(orderFieldName != null)
-            realmQuery.sort(orderFieldName)
+            realmQuery.notEqualTo(orderFieldName, NO_ORDER).sort(orderFieldName)
 
         return realmQuery.findAll()
     }
@@ -205,44 +184,6 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         offset = 0
     }
 
-    protected open fun onBeforeInsertData(realm: Realm, apiObj: X) = Unit
-    protected open fun onBeforeInsertData(realm: Realm, id: Any, apiObj: X) = Unit
-
-    /**
-     * This method is accessed when exists an obj local.
-     * Must be implemented when the api obj fields is different from obj local
-     *
-     * @param oldObjLocal The obj local before the database update
-     * @param objUpdated The obj updated with the apiObj fields
-     */
-    protected open fun setFieldsFromApi(oldObjLocal: E, objUpdated: E) = Unit
-
-    /**
-     * This method is accessed when exists an obj local and resumeMode is enabled.
-     * Must be implemented when the api obj fields comes with less fields
-     *
-     * @param objLocal The obj local that must be updated
-     * @param apiObj The obj that comes from API with less fields
-     */
-    protected open fun setFieldsFromApiInResumeMode(objLocal: E, apiObj: X) = Unit
-
-    /**
-     * Check if some data was deleted comparing the localList with apiList.
-     * If in the apiList does not contains some data of localList, the local obj field excludeDate is updated
-     * @param apiList The list that comes from the API
-     */
-    protected open fun handleDeletedDataFromApi(realm: Realm, localList: List<E>, apiList: List<X>) {
-        localList.forEach { localObj ->
-            if(localObj !is BaseContract) return@forEach
-            val apiObj = apiList.find { isSameObj(localObj, it) }
-            if (apiObj == null) {
-                Log.d(tag, "$localObj excludeDate updated")
-                localObj.excludeDate = Date().time
-                realm.insertOrUpdate(createRealmObj(localObj))
-            }
-        }
-    }
-
     @WorkerThread
     open fun deleteInMainThread(getRealmQuery: (realmQuery: RealmQuery<T>) -> RealmQuery<T>) {
         getRealm().executeTransaction { realm ->
@@ -259,113 +200,10 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
         resetRealm()
     }
 
-    fun insertOrUpdateList(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
-            insertOrUpdateList(offset, realm, apiList)
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
-            getLocalList {
-                callback(it)
-            }
-        })
-    }
-
-    fun insertOrUpdateList(offset: Int, realm: Realm, apiList: List<X>) {
-        val localList = map(getQueryByOrder(offset, getRealmQueryTable(realm)))
-        val apiListFiltered = apiList.filter { it != null }
-        handleDeletedDataFromApi(realm, localList, apiListFiltered)
-        Log.d(tag, getTagLog() + ": insertOrUpdateList()")
-        var order = offset
-        apiListFiltered.forEach { apiObj ->
-            onBeforeInsertData(realm, apiObj)
-            val objLocal = localList.find { isSameObj(it, apiObj) }
-            if (objLocal != null) {
-                val objToUpdate: E = if (resumeMode) {
-                    setFieldsFromApiInResumeMode(objLocal, apiObj)
-                    objLocal
-                } else {
-                    val objLocalUpdated = createObjFromObjApi(apiObj)
-                    setFieldsFromApi(objLocal, objLocalUpdated)
-                    objLocalUpdated
-                }
-                if(objToUpdate is BaseContract) objToUpdate.order = order++
-                realm.insertOrUpdate(createRealmObj(objToUpdate))
-            } else {
-                val objToInsert = createObjFromObjApi(apiObj)
-                if(objToInsert is BaseContract) objToInsert.order = order++
-                realm.insertOrUpdate(createRealmObj(objToInsert))
-            }
-        }
-    }
-
-    protected fun insertOrUpdateFromObjApi(id: Any, objApi: X, callback: (E?) -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
-            onBeforeInsertData(realm, id, objApi)
-            val idField = objApi::javaClass.get().declaredFields.find { field ->
-                field.annotations.any { it is PrimaryKey }
-            }
-
-            val objLocal = if(idField != null) {
-                val idFieldValue = if(Modifier.isPublic(idField.modifiers)) {
-                    idField.get(objApi)
-                }
-                else {
-                    val methods = objApi::javaClass.get().declaredMethods
-                    methods.find { it.name?.toLowerCase()?.contains("get${idField.name.toLowerCase()}") == true }?.invoke(objApi)
-                }
-
-                when (idFieldValue) {
-                    is Long -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
-                    is String -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
-                    is Int -> getRealmQueryTable(realm).equalTo(mPrimaryKeyFieldName, idFieldValue).findFirst()
-                    else -> null
-                }
-            } else {
-                Log.e(getTagLog(), "$objApi don't have PrimaryKey, the order will be missed")
-                null
-            }
-
-            val objToUpdate = createObjFromObjApi(objApi)
-            if(objLocal != null) setFieldsFromApi(createObj(objLocal), objToUpdate)
-            if(objLocal != null && objToUpdate is BaseContract && objLocal is BaseContract) {
-                objToUpdate.order = objLocal.order
-            }
-            realm.insertOrUpdate(createRealmObj(objToUpdate))
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
-            getInsertedObj(id, objApi, callback)
-        })
-    }
-
-    protected open fun getInsertedObj(id: Any, objApi: X, callback: (E?) -> Unit) = getLocalObj(id, callback)
-
-    /**
-     * Call this method inside a transaction.
-     * Insert or update list in same thread that this method was call.
-     * Don't call this method in the main thread
-     */
-    @WorkerThread
-    fun insertOrUpdateHashList(realm: Realm, apiList: Set<X>) {
-        apiList.forEach {
-            realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
-        }
-    }
-
     @WorkerThread
     fun insertOrUpdate(realm: Realm, apiList: List<E>) {
         apiList.forEach {
             realm.insertOrUpdate(createRealmObj(it))
-        }
-    }
-
-    @WorkerThread
-    fun insertOrUpdateHashList(apiList: Set<X>) {
-        getRealm().executeTransaction { realm ->
-            apiList.forEach {
-                realm.insertOrUpdate(createRealmObj(createObjFromObjApi(it)))
-            }
         }
     }
 
@@ -506,5 +344,9 @@ abstract class BaseRepository<E, T, X : Any> : Repository, MapperContract<E, T, 
             this.idParent = idParent
             return this
         }
+    }
+
+    companion object {
+        const val NO_ORDER = -1
     }
 }

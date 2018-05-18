@@ -2,7 +2,7 @@ package com.bano.base.arch.main.sync
 
 import android.util.Log
 import com.bano.base.BaseResponse
-import com.bano.base.arch.main.remote.BaseRemoteRepository
+import com.bano.base.arch.main.remote.BaseRemoteApiRepository
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -11,16 +11,12 @@ import io.realm.RealmQuery
  * Created by bk_alexandre.pereira on 06/10/2017.
  *
  */
-abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteRepository<E, T, X, V>
+abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteApiRepository<E, T, X, V>
         where E : Syncable, T : RealmModel {
-
-    constructor(realmClass: Class<T>, clazz: Class<V>): super(realmClass, clazz)
 
     constructor(clazz: Class<V>, builder: Builder<T>): super(clazz, builder)
 
     constructor(realm: Realm, clazz: Class<V>, builder: Builder<T>): super(realm, clazz, builder)
-
-    constructor(realm: Realm, realmClass: Class<T>, clazz: Class<V>): super(realm, realmClass, clazz)
 
     protected abstract fun sendPendentSync(api: V, syncList: List<E>, callback: (Boolean) -> Unit)
     protected abstract fun sendPendentSync(api: V, syncObj: E, callback: (Boolean) -> Unit)

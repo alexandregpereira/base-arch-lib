@@ -1,8 +1,7 @@
 package com.bano.base.arch.main.embedded
 
-import com.bano.base.arch.main.BaseRepository
+import com.bano.base.arch.main.remote.BaseRemoteRepository
 import io.realm.Realm
-import io.realm.RealmModel
 
 /**
  * Created by bk_alexandre.pereira on 15/09/2017.
@@ -10,13 +9,13 @@ import io.realm.RealmModel
  */
 interface BaseEmbeddedListContract<in X : Any> {
 
-    var embeddedRepositoryList: List<BaseRepository<*, *, *>>?
+    var embeddedRepositoryList: List<BaseRemoteRepository<*, *, *>>?
 
-    fun createEmbeddedRepositoryList(realm: Realm, idParent: Long?): List<BaseRepository<*, *, *>>
+    fun createEmbeddedRepositoryList(realm: Realm, idParent: Long?): List<BaseRemoteRepository<*, *, *>>
     fun getId(apiData: X): Long?
-    fun insertOrUpdateListAtEmbeddedRepository(embeddedRepository: BaseRepository<*, *, *>, offset: Int, realm: Realm, apiObj: X)
+    fun insertOrUpdateListAtEmbeddedRepository(embeddedRepository: BaseRemoteRepository<*, *, *>, offset: Int, realm: Realm, apiObj: X)
 
-    fun getEmbeddedRepositoryList(realm: Realm, idParent: Long?): List<BaseRepository<*, *, *>> {
+    fun getEmbeddedRepositoryList(realm: Realm, idParent: Long?): List<BaseRemoteRepository<*, *, *>> {
         if(embeddedRepositoryList?.any { it.idParent != idParent } == true) {
             embeddedRepositoryList = null
         }

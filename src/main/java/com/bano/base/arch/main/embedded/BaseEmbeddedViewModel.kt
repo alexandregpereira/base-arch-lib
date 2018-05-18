@@ -5,7 +5,7 @@ package com.bano.base.arch.main.embedded
 import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import com.bano.base.BaseResponse
-import com.bano.base.arch.main.BaseRepository
+import com.bano.base.arch.main.remote.BaseRemoteRepository
 import com.bano.base.arch.main.remote.BaseRemoteViewModel
 import io.realm.RealmModel
 
@@ -13,14 +13,14 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 04/10/2017.
  *
  */
-abstract class BaseEmbeddedViewModel<E, T, X : Any, F> :
+abstract class BaseEmbeddedViewModel<E : Any, T, X : Any, F : Any> :
         BaseRemoteViewModel<E, T, X>() where T : RealmModel {
 
     val holderMapLiveData = MutableLiveData<HolderMapResponse<E, F>>()
     val embeddedListLiveData = MutableLiveData<BaseResponse<List<F>>>()
     val embeddedObjLiveData = MutableLiveData<BaseResponse<F>>()
 
-    abstract fun getEmbeddedRepository(embeddedRepositoryList: List<BaseRepository<*, *, *>>): BaseRepository<F, *, *>
+    abstract fun getEmbeddedRepository(embeddedRepositoryList: List<BaseRemoteRepository<*, *, *>>): BaseRemoteRepository<F, *, *>
 
     open fun load(id: Long) {
         loadLocal(id)

@@ -10,19 +10,19 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
-abstract class BaseViewModel<E, T, X : Any> :
+abstract class BaseViewModel<E : Any, T> :
         ViewModel() where T : RealmModel {
 
     var idParent: Long? = null
     var total: Int? = null
-    private var mRepository: BaseRepository<E, T, X>? = null
+    private var mRepository: BaseRepository<E, T>? = null
 
     open val listLiveData = MutableLiveData<BaseResponse<List<E>>>()
     open val objLiveData = MutableLiveData<BaseResponse<E>>()
 
-    protected abstract fun createRepository(idParent: Long?): BaseRepository<E, T, X>
+    protected abstract fun createRepository(idParent: Long?): BaseRepository<E, T>
 
-    protected fun getRepository(): BaseRepository<E, T, X> {
+    protected fun getRepository(): BaseRepository<E, T> {
         val repository =
                 if(mRepository?.idParent != idParent) {
                     createRepository(idParent)

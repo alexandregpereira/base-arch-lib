@@ -9,8 +9,8 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
-abstract class BaseRemoteViewModel<E, T, X : Any> :
-        BaseViewModel<E, T, X>() where T : RealmModel {
+abstract class BaseRemoteViewModel<E : Any, T, X : Any> :
+        BaseViewModel<E, T>() where T : RealmModel {
 
     val responseCodeLiveData = MutableLiveData<Int>()
     val logoutLiveData = MutableLiveData<Boolean>()
@@ -30,14 +30,14 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
     }
 
     fun reload(): Int {
-        val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+        val repository = getRepository() as? BaseRemoteApiRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteApiRepository")
         repository.clearData()
         loadRemote()
         return repository.limit
     }
 
     fun reloadObj(id: Any): Int {
-        val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+        val repository = getRepository() as? BaseRemoteApiRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteApiRepository")
         repository.clearObjData()
         loadObjRemote(id)
         return repository.limit
@@ -49,7 +49,7 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
 
     protected fun loadRemote(callback: (() -> Unit)?) {
         loadRemote<List<E>>({ onResponse ->
-            val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+            val repository = getRepository() as? BaseRemoteApiRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteApiRepository")
             repository.getRemoteList(onResponse)
         }, { baseResponse ->
             listLiveData.value = baseResponse
@@ -79,7 +79,7 @@ abstract class BaseRemoteViewModel<E, T, X : Any> :
     }
 
     open fun loadObjRemote(id: Any) {
-        val repository = getRepository() as? BaseRemoteRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteRepository")
+        val repository = getRepository() as? BaseRemoteApiRepository<E, T, X, *> ?: throw IllegalAccessException("repository must be BaseRemoteApiRepository")
         loadingLiveData.value = true
         repository.getRemoteObj(id) { baseResponse ->
             loadingLiveData.value = false

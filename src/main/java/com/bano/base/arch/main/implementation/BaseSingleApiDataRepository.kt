@@ -1,6 +1,6 @@
 package com.bano.base.arch.main.implementation
 
-import com.bano.base.arch.main.BaseRepository
+import com.bano.base.arch.main.remote.BaseRemoteRepository
 import io.realm.Realm
 import io.realm.RealmObject
 
@@ -8,7 +8,7 @@ import io.realm.RealmObject
  * Created by Alexandre on 04/03/2018.
  *
  */
-abstract class BaseSingleApiDataRepository<T : RealmObject, X : Any> : BaseRepository<T, T, X> {
+abstract class BaseSingleApiDataRepository<T : RealmObject, X : Any> : BaseRemoteRepository<T, T, X> {
 
     constructor(realmClass: Class<T>): super(realmClass)
     constructor(builder: Builder<T>): super(builder)
