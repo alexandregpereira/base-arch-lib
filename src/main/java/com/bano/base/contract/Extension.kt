@@ -12,6 +12,10 @@ import java.lang.reflect.Modifier
  *
  */
 
+fun <T : RealmModel, E> T.toObj(newInstance: (T) -> E): E {
+    return newInstance(this)
+}
+
 fun Any.getId(): Any {
     val idField = this::javaClass.get().declaredFields.find { field ->
         field.annotations.any { it is PrimaryKey }
