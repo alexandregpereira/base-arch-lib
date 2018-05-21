@@ -49,7 +49,7 @@ abstract class BaseEmbeddedListRemoteRepository<E : Any, T, X : Any, V> : BaseRe
         super<BaseEmbeddedListContract>.onBeforeInsertData(realm, apiObj)
     }
 
-    override fun onBeforeInsertData(realm: Realm, id: Long, apiObj: X) {
+    override fun onBeforeInsertData(realm: Realm, id: Any, apiObj: X) {
         super<BaseEmbeddedListContract>.onBeforeInsertData(realm, id, apiObj)
     }
 }

@@ -11,11 +11,11 @@ interface BaseEmbeddedListContract<in X : Any> {
 
     var embeddedRepositoryList: List<BaseRemoteRepository<*, *, *>>?
 
-    fun createEmbeddedRepositoryList(realm: Realm, idParent: Long?): List<BaseRemoteRepository<*, *, *>>
+    fun createEmbeddedRepositoryList(realm: Realm, idParent: Any?): List<BaseRemoteRepository<*, *, *>>
     fun getId(apiData: X): Long?
     fun insertOrUpdateListAtEmbeddedRepository(embeddedRepository: BaseRemoteRepository<*, *, *>, offset: Int, realm: Realm, apiObj: X)
 
-    fun getEmbeddedRepositoryList(realm: Realm, idParent: Long?): List<BaseRemoteRepository<*, *, *>> {
+    fun getEmbeddedRepositoryList(realm: Realm, idParent: Any?): List<BaseRemoteRepository<*, *, *>> {
         if(embeddedRepositoryList?.any { it.idParent != idParent } == true) {
             embeddedRepositoryList = null
         }
@@ -28,11 +28,11 @@ interface BaseEmbeddedListContract<in X : Any> {
         onBeforeInsertData(true, realm, getId(apiObj), apiObj)
     }
 
-    fun onBeforeInsertData(realm: Realm, id: Long, apiObj: X) {
+    fun onBeforeInsertData(realm: Realm, id: Any, apiObj: X) {
         onBeforeInsertData(false, realm, id, apiObj)
     }
 
-    private fun onBeforeInsertData(resumeMode: Boolean, realm: Realm, idParent: Long?, apiObj: X) {
+    private fun onBeforeInsertData(resumeMode: Boolean, realm: Realm, idParent: Any?, apiObj: X) {
         val embeddedRepositoryList = getEmbeddedRepositoryList(realm, idParent)
         embeddedRepositoryList.forEach { embeddedRepository ->
             embeddedRepository.resumeMode = resumeMode
