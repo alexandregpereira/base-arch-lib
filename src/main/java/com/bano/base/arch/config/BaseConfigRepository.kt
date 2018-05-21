@@ -26,9 +26,10 @@ abstract class BaseConfigRepository<T, V>(private val clazz: Class<V>) : Reposit
     protected abstract fun createAPIRequestModel(): BaseApiRequestModel
 
     fun getLocal(): T? {
-        val realmObj = getDatabaseLocal() ?: return null
+        val realm = Realm.getDefaultInstance()
+        val realmObj = getDatabaseLocal(realm) ?: return null
         val configObj = createObj(realmObj)
-        resetRealm()
+        realm.close()
         return configObj
     }
 
@@ -38,7 +39,7 @@ abstract class BaseConfigRepository<T, V>(private val clazz: Class<V>) : Reposit
     }
 
     protected fun getDatabaseLocal(): T? = getRealmQueryTable(getRealm()).findFirst()
-    private fun getDatabaseLocal(realm: Realm): T? = getRealmQueryTable(realm).findFirst()
+    protected fun getDatabaseLocal(realm: Realm): T? = getRealmQueryTable(realm).findFirst()
 
     fun getRemote(callback: (response: Int, T?) -> Unit) {
         getRemote(callback) { retrofit, onResponse, onFailure ->
