@@ -114,9 +114,9 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         else getRealmQueryTable(getRealm()).equalTo(idParentFieldName, idParent)
     }
 
-    fun getLocalList(callback: (List<E>) -> Unit) {
+    fun getLocalList(callback: (offset: Int, List<E>) -> Unit) {
         val offset = offset
-        RepositoryUtil.executeRealmInAsyncHandlerThread(execute = { realm ->
+        RepositoryUtil.executeRealmInAsyncHandlerThread(offset, execute = { realm ->
             getLocalList(realm, offset)
         }, callback = callback)
     }

@@ -28,7 +28,9 @@ abstract class BaseViewModel<E : Any, T> :
                     createRepository(idParent)
                 }
                 else mRepository ?: createRepository(idParent)
-        repository.total = total
+        if(repository.total == null) {
+            repository.total = total
+        }
         mRepository = repository
         return repository
     }
@@ -42,8 +44,9 @@ abstract class BaseViewModel<E : Any, T> :
     }
 
     open fun loadLocal() {
-        getRepository().getLocalList {
-            listLiveData.value = BaseResponse(it)
+        listLiveData.value = null
+        getRepository().getLocalList { offset, value ->
+            listLiveData.value = BaseResponse(offset, value)
         }
     }
 

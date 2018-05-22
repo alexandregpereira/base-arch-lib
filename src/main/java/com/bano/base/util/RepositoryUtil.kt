@@ -46,4 +46,19 @@ object RepositoryUtil {
             }
         }
     }
+
+    fun <T, R> executeRealmInAsyncHandlerThread(r: R, execute: (realm: Realm) -> T, callback: (R, T) -> Unit) {
+        val handlerThread = HandlerThread("executeRealmInAsyncHandlerThread")
+        handlerThread.start()
+        val mainHandler = Handler()
+        Handler(handlerThread.looper).post {
+            val realm = Realm.getDefaultInstance()
+            val t = execute(realm)
+            realm.close()
+            mainHandler.post {
+                handlerThread.quit()
+                callback(r, t)
+            }
+        }
+    }
 }

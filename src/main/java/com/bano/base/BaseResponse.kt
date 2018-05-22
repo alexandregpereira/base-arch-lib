@@ -11,33 +11,53 @@ open class BaseResponse<K> {
     val responseCode: Int
     val value: K?
     val isRemoteCallback: Boolean
+    val offset: Int
     var payload: Any? = null
 
     constructor(responseCode: Int, value: K?, isRemoteCallback: Boolean) {
+        this.offset = 0
+        this.responseCode = responseCode
+        this.value = value
+        this.isRemoteCallback = isRemoteCallback
+    }
+
+    constructor(offset: Int, responseCode: Int, value: K?, isRemoteCallback: Boolean) {
+        this.offset = offset
         this.responseCode = responseCode
         this.value = value
         this.isRemoteCallback = isRemoteCallback
     }
 
     constructor(value: K?) {
+        this.offset = 0
+        this.responseCode = 200
+        this.value = value
+        this.isRemoteCallback = false
+    }
+
+    constructor(offset: Int, value: K?) {
+        this.offset = offset
         this.responseCode = 200
         this.value = value
         this.isRemoteCallback = false
     }
 
     constructor(value: K?, isRemoteCallback: Boolean) {
+        this.offset = 0
         this.responseCode = 200
         this.value = value
         this.isRemoteCallback = isRemoteCallback
     }
 
     constructor(responseCode: Int) {
+        this.offset = 0
         this.responseCode = responseCode
         this.value = null
         this.isRemoteCallback = true
     }
 
     constructor(response: Response<K>){
+        this.offset = 0
         this.responseCode = response.code()
         this.value = response.body()
         this.isRemoteCallback = true

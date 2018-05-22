@@ -9,6 +9,7 @@ import io.realm.RealmModel
  * Created by bk_alexandre.pereira on 18/09/2017.
  *
  */
+@Suppress("UNCHECKED_CAST")
 abstract class BaseRemoteViewModel<E : Any, T, X : Any> :
         BaseViewModel<E, T>() where T : RealmModel {
 

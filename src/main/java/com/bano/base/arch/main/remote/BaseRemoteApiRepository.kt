@@ -183,7 +183,7 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
             }
             requestPoolItem.storeApiData(requestPoolItem.offset, apiData) {
                 setCached(requestPoolItem.offset)
-                val baseResponse = BaseResponse(response.responseCode, it, true)
+                val baseResponse = BaseResponse(requestPoolItem.offset, response.responseCode, it, true)
                 baseResponse.payload = response.payload
                 requestPoolItem.callback(baseResponse)
                 removeRequestToThePool(requestPoolItem)
