@@ -85,7 +85,7 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
             insertOrUpdateFromApi(offset, realm, apiList)
         }, Realm.Transaction.OnSuccess {
             mainRealm.close()
-            getLocalList { _, value ->
+            getLocalList(offset) { _, value ->
                 callback(value)
             }
         })

@@ -115,7 +115,10 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
     }
 
     fun getLocalList(callback: (offset: Int, List<E>) -> Unit) {
-        val offset = offset
+        getLocalList(offset, callback)
+    }
+
+    fun getLocalList(offset: Int, callback: (offset: Int, List<E>) -> Unit) {
         RepositoryUtil.executeRealmInAsyncHandlerThread(offset, execute = { realm ->
             getLocalList(realm, offset)
         }, callback = callback)
