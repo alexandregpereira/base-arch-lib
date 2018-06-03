@@ -3,7 +3,10 @@ package com.bano.base.arch.main.remote
 import android.support.annotation.WorkerThread
 import android.util.Log
 import com.bano.base.arch.main.BaseRepository
-import com.bano.base.contract.*
+import com.bano.base.contract.BaseContract
+import com.bano.base.contract.MapperContract
+import com.bano.base.contract.getId
+import com.bano.base.contract.queryById
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -88,6 +91,16 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
             getLocalList(offset) { _, value ->
                 callback(value)
             }
+        })
+    }
+
+    fun insertOrUpdateFromApiWithoutReturn(offset: Int, apiList: List<X>, callback: () -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            insertOrUpdateFromApi(offset, realm, apiList)
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            callback()
         })
     }
 
