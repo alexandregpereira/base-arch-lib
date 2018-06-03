@@ -9,6 +9,7 @@ interface Syncable {
     var syncStatus: Int
 
     fun isPendentSyncStatus(): Boolean = this.syncStatus == SYNC_PENDENT_STATUS
+    fun isIncompleteSyncStatus(): Boolean = this.syncStatus == SYNC_INCOMPLETE_STATUS
 
     companion object {
         val SYNC_STATUS_FIELD_NAME = "syncStatus"
