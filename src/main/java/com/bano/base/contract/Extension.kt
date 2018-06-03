@@ -79,7 +79,20 @@ fun <E, T> RealmList<T>?.toArrayList(newInstance: (T) -> E): ArrayList<E> {
     return realmList
 }
 
+
+fun <E, T> RealmList<T>?.toList(newInstance: (T) -> E): List<E> {
+    val realmList = ArrayList<E>()
+    this?.forEach { realmList.add(newInstance(it)) }
+    return realmList
+}
+
 fun <E, T> RealmResults<T>?.toArrayList(newInstance: (T) -> E): ArrayList<E> {
+    val list = ArrayList<E>()
+    this?.forEach { list.add(newInstance(it)) }
+    return list
+}
+
+fun <E, T> RealmResults<T>?.toList(newInstance: (T) -> E): List<E> {
     val list = ArrayList<E>()
     this?.forEach { list.add(newInstance(it)) }
     return list
@@ -91,10 +104,25 @@ fun <E, T> RealmResults<T>?.toArrayList(mapper: BaseObjMapperContract<E, T>): Ar
     return list
 }
 
+fun <E, T> RealmResults<T>?.toList(mapper: BaseObjMapperContract<E, T>): List<E> {
+    val list = ArrayList<E>()
+    this?.forEach { list.add(mapper.createObj(it)) }
+    return list
+}
+
 /**
  * For primitives types
  */
 fun <T> RealmList<T>?.toArrayList(): ArrayList<T> {
+    val realmList = ArrayList<T>()
+    this?.forEach { realmList.add(it) }
+    return realmList
+}
+
+/**
+ * For primitives types
+ */
+fun <T> RealmList<T>?.toList(): List<T> {
     val realmList = ArrayList<T>()
     this?.forEach { realmList.add(it) }
     return realmList
