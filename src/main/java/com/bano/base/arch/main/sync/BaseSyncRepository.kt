@@ -3,6 +3,8 @@ package com.bano.base.arch.main.sync
 import android.util.Log
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.remote.BaseRemoteApiRepository
+import com.bano.base.contract.toList
+import com.bano.base.util.RepositoryUtil
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -68,16 +70,19 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteApiRepository<E,
     }
 
     fun checkPendentSync() {
-        val syncList = map(getPendentSyncQuery(getRealmQueryTable()).findAll())
-        if(!syncList.isEmpty()) {
-            Log.d(getTagLog(), "sendPendentSync List")
-            val api = getApi()
-            sendPendentSync(api, syncList) { result ->
-                if(result) {
-                    updateToSyncRealized(syncList)
+        RepositoryUtil.executeRealmInAsyncHandlerThread(execute = { realm ->
+            getPendentSyncQuery(getRealmQueryTable(realm)).findAll().toList(this)
+        }, callback = { syncList ->
+            if(!syncList.isEmpty()) {
+                Log.d(getTagLog(), "sendPendentSync List")
+                val api = getApi()
+                sendPendentSync(api, syncList) { result ->
+                    if(result) {
+                        updateToSyncRealized(syncList)
+                    }
                 }
             }
-        }
+        })
     }
 
     open fun updateToSyncRealized(syncList: List<E>) {
