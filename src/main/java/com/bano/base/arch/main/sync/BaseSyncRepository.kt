@@ -69,7 +69,7 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteApiRepository<E,
         }
     }
 
-    fun checkPendentSync() {
+    fun checkPendentSync(callback: (() -> Unit)?) {
         RepositoryUtil.executeRealmInAsyncHandlerThread(execute = { realm ->
             getPendentSyncQuery(getRealmQueryTable(realm)).findAll().toList(this)
         }, callback = { syncList ->
@@ -78,18 +78,30 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteApiRepository<E,
                 val api = getApi()
                 sendPendentSync(api, syncList) { result ->
                     if(result) {
-                        updateToSyncRealized(syncList)
+                        updateToSyncRealized(syncList, callback)
                     }
+                    else callback?.invoke()
                 }
             }
+            else callback?.invoke()
         })
     }
 
+    fun checkPendentSync() {
+        checkPendentSync(callback = null)
+    }
+
     open fun updateToSyncRealized(syncList: List<E>) {
+        updateToSyncRealized(syncList, callback = null)
+    }
+
+    open fun updateToSyncRealized(syncList: List<E>, callback: (() -> Unit)?) {
         syncList.forEach {
             it.syncStatus = Syncable.SYNC_REALIZED_STATUS
         }
-        update(syncList) {}
+        update(syncList) {
+            callback?.invoke()
+        }
     }
 
     open fun getPendentSyncQuery(realmQuery: RealmQuery<T>): RealmQuery<T> {
