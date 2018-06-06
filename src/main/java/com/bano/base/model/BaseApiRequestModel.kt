@@ -4,6 +4,9 @@ import android.util.Log
 import com.bano.base.BaseResponse
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.io.InputStream
 
 /**
@@ -70,6 +73,31 @@ abstract class BaseApiRequestModel {
             return
         }
         onError(responseCode)
+    }
+
+    fun <R> consumeApiWithRefreshTokenHandle(apiCall: () -> Call<R>, secondTentative: Boolean, onResponse: (baseResponse: BaseResponse<R>) -> Unit, onFailure: (t: Throwable) -> Unit) {
+        apiCall().enqueue(object : Callback<R> {
+            override fun onFailure(call: Call<R>?, t: Throwable) {
+                t.printStackTrace()
+                onFailure(t)
+            }
+
+            override fun onResponse(call: Call<R>?, response: Response<R>?) {
+                if(response == null) {
+                    onResponse(BaseResponse(BaseResponse.UNKNOWN_ERROR))
+                    return
+                }
+                if(!response.isSuccessful) {
+                    checkRefreshToken(response.code(), secondTentative, onTokenRefreshed = {
+                        consumeApiWithRefreshTokenHandle(apiCall, true, onResponse, onFailure)
+                    }, onError = { responseCodeError ->
+                        onResponse(BaseResponse(responseCodeError))
+                    })
+                    return
+                }
+                onResponse(BaseResponse(response))
+            }
+        })
     }
 
     open fun buildGson(): Gson {

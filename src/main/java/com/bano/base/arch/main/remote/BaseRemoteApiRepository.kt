@@ -7,6 +7,7 @@ import com.bano.base.contract.MapperContract
 import com.bano.base.model.ApiRequestModel
 import io.realm.Realm
 import io.realm.RealmModel
+import retrofit2.Call
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.*
@@ -20,7 +21,7 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
     private val tag = "BaseRepository"
     private var remoteObj: E? = null
     private val clazz: Class<V>
-    private var mApiRequestModel: ApiRequestModel<*>? = null
+    protected val apiRequestModel: ApiRequestModel<*> by lazy { createAPIRequestModel() }
     private val mRequestsPool = TreeSet<RequestPoolItem<V, List<X>, List<E>>>()
     private var mRequestObjPoolItemInProgress = false
     private val mCachePool = HashSet<Int>()
@@ -153,7 +154,7 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
         val api = getApi()
         requestPoolItem.consumeApi(api, requestPoolItem.offset, { response ->
             if(!response.isSuccessful()) {
-                mApiRequestModel?.checkRefreshToken(response.responseCode, newTentative, onTokenRefreshed = {
+                apiRequestModel.checkRefreshToken(response.responseCode, newTentative, onTokenRefreshed = {
                     getApiAndConsume(true, requestPoolItem)
                 }, onError = { responseCodeError ->
                     sendCallbackError(BaseResponse(responseCodeError), requestPoolItem)
@@ -183,10 +184,12 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
         })
     }
 
+    protected fun <R> consumeApiWithRefreshTokenHandle(apiCall: () -> Call<R>, secondTentative: Boolean, onResponse: (baseResponse: BaseResponse<R>) -> Unit, onFailure: (t: Throwable) -> Unit) {
+        apiRequestModel.consumeApiWithRefreshTokenHandle(apiCall, secondTentative, onResponse, onFailure)
+    }
+
     protected fun getApi(): V {
-        val requestModel = mApiRequestModel ?: createAPIRequestModel()
-        mApiRequestModel = requestModel
-        return OAuth2Service.buildRetrofitService(requestModel, clazz)
+        return OAuth2Service.buildRetrofitService(apiRequestModel, clazz)
     }
 
     private fun <K, N> sendCallbackError(baseResponse: BaseResponse<N>, requestPoolItem: RequestPoolItem<V, K, N>){
