@@ -153,27 +153,11 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
         val api = getApi()
         requestPoolItem.consumeApi(api, requestPoolItem.offset, { response ->
             if(!response.isSuccessful()) {
-                if(BaseResponse.isErrorToChangeNavigation(response.responseCode) && !newTentative) {
-                    mApiRequestModel?.refreshToken { responseCode ->
-                        when (responseCode) {
-                            BaseResponse.HTTP_SUCCESS -> {
-                                Log.d("TokenRefresh", "${getTagLog()}: Token refreshed, trying again")
-                                //Try again
-                                getApiAndConsume(true, requestPoolItem)
-                            }
-                            BaseResponse.UNKNOWN_ERROR -> {
-                                Log.e("TokenRefresh", "${getTagLog()}: Token refresh failed")
-                                sendCallbackError(BaseResponse(BaseResponse.TOKEN_ERROR), requestPoolItem)
-                            }
-                            else -> {
-                                Log.e("TokenRefresh", "${getTagLog()}: Token refresh failed")
-                                sendCallbackError(BaseResponse(responseCode), requestPoolItem)
-                            }
-                        }
-                    }
-                    return@consumeApi
-                }
-                sendCallbackError(BaseResponse(response.responseCode), requestPoolItem)
+                mApiRequestModel?.checkRefreshToken(response.responseCode, newTentative, onTokenRefreshed = {
+                    getApiAndConsume(true, requestPoolItem)
+                }, onError = { responseCodeError ->
+                    sendCallbackError(BaseResponse(responseCodeError), requestPoolItem)
+                })
                 return@consumeApi
             }
             val apiData = response.value

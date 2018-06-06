@@ -1,5 +1,7 @@
 package com.bano.base.model
 
+import android.util.Log
+import com.bano.base.BaseResponse
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.io.InputStream
@@ -41,6 +43,33 @@ abstract class BaseApiRequestModel {
             }
             else callback(response)
         }
+    }
+
+    fun checkRefreshToken(responseCode: Int,
+                          newTentative: Boolean,
+                          onTokenRefreshed: () -> Unit,
+                          onError: (responseCodeError: Int) -> Unit) {
+        if(BaseResponse.isErrorToChangeNavigation(responseCode) && !newTentative) {
+            refreshToken { refreshResponseCode ->
+                when (refreshResponseCode) {
+                    BaseResponse.HTTP_SUCCESS -> {
+                        Log.d("TokenRefresh", "Token refreshed, trying again")
+                        //Try again
+                        onTokenRefreshed()
+                    }
+                    BaseResponse.UNKNOWN_ERROR -> {
+                        Log.e("TokenRefresh", "Token refresh failed")
+                        onError(BaseResponse.TOKEN_ERROR)
+                    }
+                    else -> {
+                        Log.e("TokenRefresh", "Token refresh failed")
+                        onError(responseCode)
+                    }
+                }
+            }
+            return
+        }
+        onError(responseCode)
     }
 
     open fun buildGson(): Gson {

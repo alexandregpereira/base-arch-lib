@@ -6,6 +6,6 @@ package com.bano.base.model
  */
 
 abstract class ApiRequestModel<out T>(url: String) : BaseApiRequestModel(url) {
-    abstract protected fun getAccessGrantFromDatabase(): T?
+    protected abstract fun getAccessGrantFromDatabase(): T?
 }
 
