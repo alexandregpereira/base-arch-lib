@@ -119,6 +119,8 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
 
     private fun isInProgress(offset: Int): Boolean = mRequestsPool.any { it.offset == offset && it.inProgress }
 
+    fun isInProgress(): Boolean = mRequestsPool.any { it.inProgress }
+
     private fun addRequestToThePool(requestPoolItem: RequestPoolItem<V, List<X>, List<E>>) {
         Log.d(tag, getTagLog() + ": addRequestToThePool(${requestPoolItem.offset}) - size = ${mRequestsPool.size}")
         mRequestsPool.add(requestPoolItem)
@@ -170,8 +172,8 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
                 setCached(requestPoolItem.offset)
                 val baseResponse = BaseResponse(requestPoolItem.offset, response.responseCode, it, true)
                 baseResponse.payload = response.payload
-                requestPoolItem.callback(baseResponse)
                 removeRequestToThePool(requestPoolItem)
+                requestPoolItem.callback(baseResponse)
                 mRequestObjPoolItemInProgress = false
             }
         }, { throwable ->

@@ -59,12 +59,13 @@ abstract class BaseRemoteViewModel<E : Any, T, X : Any> :
     }
 
     protected fun <N> loadRemote(getRemote: ((baseResponse: BaseResponse<N>) -> Unit) -> Unit, callback: (baseResponse: BaseResponse<N>) -> Unit) {
+        val repository = getRepository()
         val offset = getRepository().offset
         if(offset == 0) loadingLiveData.value = true
         else loadingPaginationLiveData.value = true
         getRemote { baseResponse ->
             loadingLiveData.value = false
-            loadingPaginationLiveData.value = false
+            loadingPaginationLiveData.value = (repository as? BaseRemoteApiRepository<*, *, *, *>)?.isInProgress() ?: false
             if(offset == 0) responseCodeLiveData.value = baseResponse.responseCode
             if(BaseResponse.isErrorToChangeNavigation(baseResponse.responseCode)) {
                 logout {
