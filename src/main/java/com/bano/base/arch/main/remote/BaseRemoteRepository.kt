@@ -82,12 +82,10 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
         realm.where(mRealmClass).queryById(mPrimaryKeyFieldName, localObj.getId()).findFirst()?.deleteFromRealm()
     }
 
-    fun insertOrUpdateFromApi(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+    open fun insertOrUpdateFromApi(offset: Int, apiList: List<X>, callback: (List<E>) -> Unit) {
+        executeTransactionAsync(execute = { realm ->
             insertOrUpdateFromApi(offset, realm, apiList)
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
+        }, onFinished = {
             getLocalList(offset) { _, value ->
                 callback(value)
             }
@@ -95,11 +93,9 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
     }
 
     fun insertOrUpdateFromApiWithoutReturn(offset: Int, apiList: List<X>, callback: () -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+        executeTransactionAsync(execute = { realm ->
             insertOrUpdateFromApi(offset, realm, apiList)
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
+        }, onFinished = {
             callback()
         })
     }
@@ -140,9 +136,8 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
         if(objToSave is BaseContract) objToSave.order = order
     }
 
-    protected fun insertOrUpdateFromObjApi(id: Any, objApi: X, callback: (E?) -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+    protected open fun insertOrUpdateFromObjApi(id: Any, objApi: X, callback: (E?) -> Unit) {
+        executeTransactionAsync(execute = { realm ->
             onBeforeInsertData(realm, id, objApi)
             val idField = objApi::javaClass.get().declaredFields.find { field ->
                 field.annotations.any { it is PrimaryKey }
@@ -174,8 +169,7 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
                 objToUpdate.order = objLocal.order
             }
             realm.insertOrUpdate(createRealmObj(objToUpdate))
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
+        }, onFinished = {
             getInsertedObj(id, objApi, callback)
         })
     }

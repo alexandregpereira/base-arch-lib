@@ -92,8 +92,8 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         return e
     }
 
-    fun getLocalObj(id: Any, callback: (E?) -> Unit) {
-        RepositoryUtil.executeRealmInAsyncHandlerThread(execute = { realm ->
+    open fun getLocalObj(id: Any, callback: (E?) -> Unit) {
+        executeRealmInAsync(execute = { realm ->
             getLocalObj(realm, id)
         }, callback = callback)
     }
@@ -114,12 +114,12 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         else getRealmQueryTable(getRealm()).equalTo(idParentFieldName, idParent)
     }
 
-    fun getLocalList(callback: (offset: Int, List<E>) -> Unit) {
+    open fun getLocalList(callback: (offset: Int, List<E>) -> Unit) {
         getLocalList(offset, callback)
     }
 
-    fun getLocalList(offset: Int, callback: (offset: Int, List<E>) -> Unit) {
-        RepositoryUtil.executeRealmInAsyncHandlerThread(offset, execute = { realm ->
+    open fun getLocalList(offset: Int, callback: (offset: Int, List<E>) -> Unit) {
+        executeRealmInAsync(offset,execute = { realm ->
             getLocalList(realm, offset)
         }, callback = callback)
     }
@@ -128,7 +128,7 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         return getQueryByOrder(offset, getRealmQueryTable(realm)).toArrayList { createObj(it) }
     }
 
-    fun getLocalList(): List<E> {
+    open fun getLocalList(): List<E> {
         val eList = getDatabaseList().toArrayList(this)
         resetRealm()
         return eList
@@ -221,75 +221,69 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
     }
 
     open fun update(e: E, callback: () -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+        executeTransactionAsync(execute = { realm ->
             realm.insertOrUpdate(createRealmObj(e))
             Log.d(tag, "$e updated")
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
+        }, onFinished = {
             callback()
         })
     }
 
     @WorkerThread
     open fun update(e: E) {
-        getRealm().executeTransaction({ realm ->
+        getRealm().executeTransaction { realm ->
             realm.insertOrUpdate(createRealmObj(e))
             Log.d(tag, "$e updated")
-        })
+        }
         resetRealm()
     }
 
     fun update(eList: List<E>, callback: () -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+        executeTransactionAsync(execute = { realm ->
             eList.forEach {
                 realm.insertOrUpdate(createRealmObj(it))
                 Log.d(tag, "$it updated")
             }
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
+        }, onFinished = {
             callback()
         })
     }
 
     @WorkerThread
     fun update(eList: List<E>) {
-        getRealm().executeTransaction({ realm ->
+        getRealm().executeTransaction { realm ->
             eList.forEach {
                 realm.insertOrUpdate(createRealmObj(it))
                 Log.d(tag, "$it updated")
             }
-        })
+        }
         resetRealm()
     }
 
     @WorkerThread
     fun update(eList: Set<E>) {
-        getRealm().executeTransaction({ realm ->
+        getRealm().executeTransaction { realm ->
             eList.forEach {
                 realm.insertOrUpdate(createRealmObj(it))
                 Log.d(tag, "$it updated")
             }
-        })
+        }
         resetRealm()
     }
 
     open fun insertOrUpdate(e: E, callback: (e: E) -> Unit) {
-        val mainRealm = getRealm()
-        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+        executeTransactionAsync(execute = { realm ->
             realm.insertOrUpdate(createRealmObj(e))
-        }, Realm.Transaction.OnSuccess {
-            mainRealm.close()
+        }, onFinished = {
             callback(e)
         })
     }
 
     @WorkerThread
     open fun insertOrUpdate(e: E) {
-        getRealm().executeTransaction({ realm ->
+        getRealm().executeTransaction{ realm ->
             realm.insertOrUpdate(createRealmObj(e))
-        })
+        }
         resetRealm()
     }
 
@@ -299,7 +293,7 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         handlerThread.start()
         val looper = handlerThread.looper
         val handler = Handler(looper)
-        handler.post({
+        handler.post{
 
             getRealm().executeTransactionAsync(Realm.Transaction { realm ->
                 realm.insertOrUpdate(t)
@@ -307,7 +301,29 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
                 callback(createObj(t))
             })
 
+        }
+    }
+
+    protected open fun executeTransactionAsync(execute: (Realm) -> Unit, onFinished: () -> Unit) {
+        val mainRealm = getRealm()
+        mainRealm.executeTransactionAsync(Realm.Transaction { realm ->
+            execute(realm)
+        }, Realm.Transaction.OnSuccess {
+            mainRealm.close()
+            onFinished()
         })
+    }
+
+    protected open fun <K> executeRealmInAsync(execute: (realm: Realm) -> K, callback: (K) -> Unit) {
+        RepositoryUtil.executeRealmInAsyncHandlerThread(execute = { realm ->
+            execute(realm)
+        }, callback = callback)
+    }
+
+    protected open fun <K, R> executeRealmInAsync(r: R, execute: (realm: Realm) -> K, callback: (R, K) -> Unit) {
+        RepositoryUtil.executeRealmInAsyncHandlerThread(r, execute = { realm ->
+            execute(realm)
+        }, callback = callback)
     }
 
     class Builder<T : RealmModel>(internal val realmClass: Class<T>) {

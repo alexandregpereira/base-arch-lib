@@ -4,7 +4,6 @@ import android.util.Log
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.remote.BaseRemoteApiRepository
 import com.bano.base.contract.toList
-import com.bano.base.util.RepositoryUtil
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -69,8 +68,8 @@ abstract class BaseSyncRepository<E, T, X : Any, V> : BaseRemoteApiRepository<E,
         }
     }
 
-    fun checkPendentSync(callback: (() -> Unit)?) {
-        RepositoryUtil.executeRealmInAsyncHandlerThread(execute = { realm ->
+    open fun checkPendentSync(callback: (() -> Unit)?) {
+        executeRealmInAsync(execute = { realm ->
             getPendentSyncQuery(getRealmQueryTable(realm)).findAll().toList(this)
         }, callback = { syncList ->
             if(!syncList.isEmpty()) {
