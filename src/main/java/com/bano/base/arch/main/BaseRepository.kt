@@ -23,7 +23,7 @@ import io.realm.annotations.PrimaryKey
  */
 abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> where T : RealmModel  {
     private val tag = "BaseRepository"
-    val idParent: Long?
+    var idParent: Long?
 
     val limit: Int
     var offset: Int = 0
