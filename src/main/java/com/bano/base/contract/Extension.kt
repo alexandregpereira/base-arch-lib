@@ -39,8 +39,8 @@ fun <T : RealmModel> RealmQuery<T>.queryById(primaryKeyFieldName: String, id: An
     }
 }
 
-fun <T : RealmModel, R : Any> RealmQuery<T>.queryByIds(primaryKeyFieldName: String, idList: List<R>): RealmQuery<T>? {
-    if(idList.isEmpty()) return null
+fun <T : RealmModel, R : Any> RealmQuery<T>.queryByIds(primaryKeyFieldName: String, idList: List<R>): RealmQuery<T> {
+    if(idList.isEmpty()) return this
     return when {
         idList[0] is Long -> {
             val ids = idList.map { it as Long }.toTypedArray()
@@ -54,7 +54,7 @@ fun <T : RealmModel, R : Any> RealmQuery<T>.queryByIds(primaryKeyFieldName: Stri
             val ids = idList.map { it as Int }.toTypedArray()
             this.`in`(primaryKeyFieldName, ids)
         }
-        else -> null
+        else -> this
     }
 }
 

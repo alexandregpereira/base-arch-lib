@@ -38,7 +38,7 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         limit = 0
         mOrderFieldName = null
         mRealmClass = clazz
-        mPrimaryKeyFieldName = getPrimaryKeyFieldName(clazz)
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName()
     }
 
     constructor(builder: Builder<T>): super() {
@@ -47,7 +47,7 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         mOrderFieldName = builder.orderFieldName
         offset = 0
         mRealmClass = builder.realmClass
-        mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName()
     }
 
     constructor(realm: Realm, builder: Builder<T>): super(realm) {
@@ -56,7 +56,7 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         mOrderFieldName = builder.orderFieldName
         offset = 0
         mRealmClass = builder.realmClass
-        mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName()
     }
 
     constructor(realm: Realm, clazz: Class<T>) : super(realm) {
@@ -65,12 +65,12 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         offset = 0
         mOrderFieldName = null
         mRealmClass = clazz
-        mPrimaryKeyFieldName = getPrimaryKeyFieldName(mRealmClass)
+        mPrimaryKeyFieldName = getPrimaryKeyFieldName()
     }
 
-    private fun getPrimaryKeyFieldName(clazz: Class<T>): String = clazz.declaredFields.find {
+    protected fun getPrimaryKeyFieldName(): String = mRealmClass.declaredFields.find {
         it.annotations.any { it is PrimaryKey }
-    }?.name ?: throw IllegalArgumentException("$clazz must have primary key")
+    }?.name ?: throw IllegalArgumentException("$mRealmClass must have primary key")
 
     protected open fun getTagLog(): String = "BaseRepository"
 
@@ -159,6 +159,14 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
     }
 
     private fun getQueryByOrder(offset: Int, orderFieldName: String?, realmQuery: RealmQuery<T>): RealmResults<T> {
+        return getQuery(offset, orderFieldName, realmQuery).findAll()
+    }
+
+    protected fun getQuery(offset: Int, realmQuery: RealmQuery<T>): RealmQuery<T> {
+        return getQuery(offset, mOrderFieldName, realmQuery)
+    }
+
+    protected fun getQuery(offset: Int, orderFieldName: String?, realmQuery: RealmQuery<T>): RealmQuery<T> {
         val idParentFieldName = getIdParentFieldName()
         if (idParent != null && idParentFieldName != null) realmQuery.equalTo(idParentFieldName, idParent)
 
@@ -168,7 +176,7 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
         if(orderFieldName != null)
             realmQuery.notEqualTo(orderFieldName, NO_ORDER).sort(orderFieldName)
 
-        return realmQuery.findAll()
+        return realmQuery
     }
 
     /**

@@ -3,10 +3,7 @@ package com.bano.base.arch.main.remote
 import android.support.annotation.WorkerThread
 import android.util.Log
 import com.bano.base.arch.main.BaseRepository
-import com.bano.base.contract.BaseContract
-import com.bano.base.contract.MapperContract
-import com.bano.base.contract.getId
-import com.bano.base.contract.queryById
+import com.bano.base.contract.*
 import io.realm.Realm
 import io.realm.RealmModel
 import io.realm.RealmQuery
@@ -101,16 +98,26 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
     }
 
     protected open fun getLocalListByApiResponse(offset: Int, realmQuery: RealmQuery<T>, apiList: List<X>): RealmResults<T> {
-        return getQueryByOrder(offset, realmQuery)
+        val query = getQuery(offset, realmQuery)
+        if(apiList.isNotEmpty()) {
+            try {
+                apiList[0].getId()
+            } catch (e: RuntimeException) {
+                Log.d(getTagLog(), "${apiList[0]} does not have primary key annotation")
+                return query.findAll()
+            }
+
+            return query.or().queryByIds(mPrimaryKeyFieldName, apiList.map { it.getId() }).findAll()
+        }
+        return query.findAll()
     }
 
     fun insertOrUpdateFromApi(offset: Int, realm: Realm, apiList: List<X>) {
         val localList = map(getLocalListByApiResponse(offset, getRealmQueryTable(realm), apiList))
-        val apiListFiltered = apiList.filter { it != null }
-        handleDeletedDataFromApi(realm, localList, apiListFiltered)
+        handleDeletedDataFromApi(realm, localList, apiList)
         Log.d(tag, getTagLog() + ": insertOrUpdateList()")
         var order = offset
-        apiListFiltered.forEach { apiObj ->
+        apiList.forEach { apiObj ->
             onBeforeInsertData(realm, apiObj)
             val objLocal = localList.find { isSameObj(it, apiObj) }
             if (objLocal != null) {
