@@ -97,6 +97,13 @@ abstract class BaseRemoteRepository<E : Any, T, X : Any> : BaseRepository<E, T>,
         })
     }
 
+    /**
+     * This method is used on the get remote list to know witch data must be deleted, updated and inserted
+     * @param offset if the repository was set with a order field and a limit, this offset will be used
+     * to query with a interval, a page.
+     * @param realmQuery query that will be changed to return the data
+     * @param apiList the list returned from the API
+     */
     protected open fun getLocalListByApiResponse(offset: Int, realmQuery: RealmQuery<T>, apiList: List<X>): RealmResults<T> {
         val query = getQuery(offset, realmQuery)
         if(apiList.isNotEmpty()) {
