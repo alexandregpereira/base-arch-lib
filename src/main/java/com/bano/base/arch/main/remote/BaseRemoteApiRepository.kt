@@ -4,7 +4,7 @@ import android.util.Log
 import com.bano.base.BaseResponse
 import com.bano.base.auth.OAuth2Service
 import com.bano.base.contract.MapperContract
-import com.bano.base.model.ApiRequestModel
+import com.bano.base.model.BaseApiRequestModel
 import io.realm.Realm
 import io.realm.RealmModel
 import retrofit2.Call
@@ -21,7 +21,7 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
     private val tag = "BaseRepository"
     private var remoteObj: E? = null
     private val clazz: Class<V>
-    protected val apiRequestModel: ApiRequestModel<*> by lazy { createAPIRequestModel() }
+    protected val apiRequestModel: BaseApiRequestModel by lazy { createAPIRequestModel() }
     private val mRequestsPool = TreeSet<RequestPoolItem<V, List<X>, List<E>>>()
     private var mRequestObjPoolItemInProgress = false
     private val mCachePool = HashSet<Int>()
@@ -44,7 +44,7 @@ abstract class BaseRemoteApiRepository<E : Any, T, X : Any, V> : BaseRemoteRepos
 
     protected abstract fun getApiList(api: V, offset: Int, limit: Int, onResponse: (BaseResponse<List<X>>) -> Unit, onFailure: (t: Throwable) -> Unit)
     protected abstract fun getObjApi(api: V, id: Any, onResponse: (BaseResponse<X>) -> Unit, onFailure: (t: Throwable) -> Unit)
-    protected abstract fun createAPIRequestModel(): ApiRequestModel<*>
+    protected abstract fun createAPIRequestModel(): BaseApiRequestModel
 
     open fun getRemoteList(callback: (baseResponse: BaseResponse<List<E>>) -> Unit){
         getRemoteList(offset, callback, { api, offset, onResponse, onFailure ->
