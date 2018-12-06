@@ -219,6 +219,11 @@ abstract class BaseRepository<E, T> : Repository, BaseObjMapperContract<E, T> wh
     }
 
     @WorkerThread
+    fun insertOrUpdate(realm: Realm, apiObj: E) {
+        realm.insertOrUpdate(createRealmObj(apiObj))
+    }
+
+    @WorkerThread
     fun insertOrUpdate(list: List<E>) {
         getRealm().executeTransaction { realm ->
             list.forEach {
