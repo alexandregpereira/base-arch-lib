@@ -2,7 +2,7 @@ package com.bano.base.arch.main
 
 import android.os.Handler
 import android.os.HandlerThread
-import android.support.annotation.WorkerThread
+import androidx.annotation.WorkerThread
 import android.util.Log
 import com.bano.base.annotation.IdParent
 import com.bano.base.arch.Repository
