@@ -1,6 +1,6 @@
 package com.bano.base.arch.main.remote
 
-import android.support.annotation.WorkerThread
+import androidx.annotation.WorkerThread
 import android.util.Log
 import com.bano.base.arch.main.BaseRepository
 import com.bano.base.contract.*
