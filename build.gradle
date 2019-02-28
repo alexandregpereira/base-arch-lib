@@ -4,11 +4,11 @@ apply plugin: 'realm-android'
 apply plugin: 'kotlin-kapt'
 
 android {
-    compileSdkVersion 27
+    compileSdkVersion 28
 
     defaultConfig {
         minSdkVersion 19
-        targetSdkVersion 27
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
 
@@ -22,7 +22,7 @@ android {
         }
     }
     configurations.all {
-        resolutionStrategy.force 'com.android.support:design:27.1.1'
+        resolutionStrategy.force 'com.android.support:design:28.0.0'
     }
 }
 
