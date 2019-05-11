@@ -7,18 +7,10 @@ import io.realm.Realm
  * Created by bk_alexandre.pereira on 26/10/2017.
  *
  */
-abstract class Repository {
+abstract class Repository(realm: Realm? = null) {
 
-    private var mRealm: Realm?
+    private var mRealm: Realm? = realm
     private var mResetRealmManually = false
-
-    constructor() {
-        mRealm = Realm.getDefaultInstance()
-    }
-
-    constructor(realm: Realm) {
-        mRealm = realm
-    }
 
     fun getRealm(): Realm {
         var realm = mRealm ?: Realm.getDefaultInstance()
