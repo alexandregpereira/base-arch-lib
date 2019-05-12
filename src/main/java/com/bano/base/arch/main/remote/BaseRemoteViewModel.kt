@@ -1,6 +1,6 @@
 package com.bano.base.arch.main.remote
 
-import android.arch.lifecycle.MutableLiveData
+import androidx.lifecycle.MutableLiveData
 import com.bano.base.BaseResponse
 import com.bano.base.arch.main.BaseViewModel
 import io.realm.RealmModel
